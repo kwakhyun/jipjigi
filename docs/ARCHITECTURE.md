@@ -49,7 +49,7 @@ jipjigi/
 
 ### 검색 유입 페이지
 
-`(marketing)`은 Server Component를 기본으로 사용합니다. 지역별 임대관리 가이드, 공실 등록 안내, 월세 관리 체크리스트는 정적 생성 또는 ISR로 제공합니다. 메타데이터와 구조화 데이터는 서버에서 생성하고, 상호작용이 필요한 계산기나 CTA만 작은 Client Component로 분리합니다.
+현재 검색 유입 페이지는 `app/page.tsx`와 `app/rental-management/[district]`에서 Server Component를 기본으로 사용합니다. 지역별 임대관리 가이드는 `generateStaticParams`로 정적 생성하며 메타데이터와 구조화 데이터를 서버에서 만듭니다. 경로 수가 늘어나면 `(marketing)` route group과 ISR 경계로 분리합니다.
 
 ### 인증된 제품 화면
 
@@ -85,12 +85,12 @@ Client Briefing Island
 - TanStack Query에는 계약, 청구, 수리 요청처럼 서버가 원본인 데이터만 둡니다.
 - Jotai에는 현재 건물, 열린 바텀시트, 작성 중인 문구처럼 폐기 가능한 UI 상태만 둡니다.
 - 같은 서버 데이터를 Query와 Jotai에 중복 저장하지 않습니다.
-- Server Component가 가져온 초기 데이터는 Query의 `initialData`와 `dataUpdatedAt`으로 전달합니다.
+- Server Component가 가져온 초기 데이터는 Query의 `initialData`로 전달합니다.
 - 발송 성공은 서버 응답을 받은 뒤 캐시를 갱신하며, 중복 발송 방지는 서버 멱등 키가 책임집니다.
 
 ## 6. 스타일과 디자인 시스템
 
-Panda CSS의 semantic token을 `packages/ui`에 둡니다. 웹과 React Native는 원시 색 이름이 아니라 `surface.canvas`, `text.primary`, `status.risk`, `action.primary` 같은 의미 토큰을 공유합니다.
+현재 웹은 `globals.css`의 CSS 변수와 상태 클래스를 사용하고 `packages/ui`는 공통 `cx` 유틸리티를 제공합니다. Panda CSS 전환 시 semantic token을 `packages/ui`에 두고, React Native 도입 뒤에는 원시 색 이름이 아닌 `surface.canvas`, `text.primary`, `status.risk`, `action.primary` 같은 의미 토큰을 공유합니다.
 
 컴포넌트 계층은 다음처럼 나눕니다.
 
@@ -102,37 +102,37 @@ tokens → primitives → domain components → feature composition
 - domain components: RiskCard, CollectionSummary, LeaseStatus, MessagePreview
 - feature composition: DailyBriefing, RenewalFlow, OverdueReminderFlow
 
-컴포넌트는 키보드, 포커스, 로딩, 빈 상태, 성공, 오류 상태를 Storybook에서 함께 문서화합니다.
+현재 컴포넌트 상태는 실행 화면, Testing Library와 디자인 QA 이미지로 검증합니다. Storybook은 공통 primitives가 늘어날 때 도입할 후속 문서화 도구입니다.
 
 ## 7. 실험 배정
 
 - 배정 단위는 로그인 사용자 ID입니다.
-- 서버에서 안정적인 해시로 변형을 고정하고 쿠키에는 실험 ID와 변형만 저장합니다.
+- 서버에서 안정적인 해시로 변형을 고정하고 `experiment_assignments` 테이블에 저장합니다.
 - 변형 배정과 노출 기록을 분리합니다. UI가 실제로 렌더된 뒤에만 노출로 인정합니다.
 - `proxy.ts`는 인증과 최소한의 헤더 전달만 담당합니다. 비즈니스 배정 규칙은 `packages/experiments`에 둡니다.
 - 종료된 실험은 변형 타입, 분기, 전용 스타일, 이벤트 속성을 제거하는 정리 PR을 만듭니다.
 
 ## 8. 이벤트 수집
 
-클라이언트는 타입이 고정된 이벤트만 전송합니다. 서버는 스키마 검증, 중복 제거, PII 필터링 후 큐에 적재합니다. 제품 요청 경로는 분석 시스템 장애 때문에 실패하지 않도록 분리합니다.
+클라이언트와 서버 변경 로직은 `packages/analytics`의 고정된 이벤트 이름을 사용합니다. 현재 서버는 스키마 검증, 중복 제거와 PII 필터링 뒤 SQLite에 저장합니다. 브라우저 전송 실패는 사용자 작업을 막지 않으며, 변경 작업과 웹훅의 핵심 이벤트는 서버가 저장합니다. 다중 인스턴스 전환 시 SQLite 쓰기를 내구성 큐와 웨어하우스로 교체합니다.
 
 ```text
 Web / Mobile
   → POST /api/events
   → schema validation + PII filter
-  → durable queue
-  → warehouse
+  → SQLite product_events (현재)
+  → durable queue → warehouse (수평 확장 후)
   → experiment and CRM dashboards
 ```
 
 ## 9. SEO와 유입
 
 - `app/layout.tsx`의 Metadata API로 기본 제목 템플릿을 정의합니다.
-- 지역과 주제별 페이지에는 `generateMetadata`를 사용하되 본문 조회와 `cache()`로 중복 요청을 막습니다.
-- `robots.ts`, `sitemap.ts`, 정적 Open Graph 이미지를 기본으로 둡니다.
+- 지역 페이지에는 `generateMetadata`와 `generateStaticParams`를 사용합니다. 현재 콘텐츠는 정적 모듈이므로 별도 데이터 조회 캐시가 필요하지 않습니다.
+- `robots.ts`, `sitemap.ts`와 최적화된 브랜드 이미지를 기본으로 둡니다.
 - 헤더 이미지는 `next/image`와 정확한 `sizes`를 사용하고 LCP 이미지에만 우선순위를 줍니다.
-- Pretendard 또는 검토된 한글 로컬 폰트는 `next/font/local`로 한 번만 등록합니다.
-- 검색 페이지와 제품 앱을 route group으로 분리해 제품용 클라이언트 코드가 랜딩 번들에 섞이지 않게 합니다.
+- 현재는 운영체제 한글 폰트 스택을 사용합니다. 브랜드 폰트를 확정하면 `next/font/local`로 한 번만 등록합니다.
+- 번들 예산은 경로별 초기 청크로 검사합니다. 페이지 수가 늘어나면 검색 페이지와 제품 앱을 route group으로 분리합니다.
 
 ## 10. React Native
 
@@ -163,13 +163,17 @@ CloudFront
 
 ## 12. CI/CD
 
+현재 GitHub Actions는 프로덕션 웹의 타입 검사, 단위 및 컴포넌트 테스트, 빌드와 번들 예산을 검사하고, 프로토타입은 런타임과 정적 랜딩을 별도 작업으로 검증합니다. 아래 전체 승격 흐름은 실제 CRM과 AWS 운영 환경을 연결할 때의 목표입니다.
+
 ```text
 pull request
   → typecheck
-  → lint
   → unit and component tests
   → accessibility checks
   → production build
+  → route bundle budget
+
+후속 운영 파이프라인
   → visual regression
   → preview environment
 
@@ -181,24 +185,24 @@ main
   → metric guardrail check
 ```
 
-TurboRepo는 패키지 입력과 환경 변수를 명시해 캐시 오염을 막습니다. 생성물과 테스트 결과는 작업별로 캐시하며, 배포 작업은 빌드 산출물의 해시를 그대로 승격합니다.
+Turborepo는 패키지 입력과 환경 변수를 명시해 캐시 오염을 막습니다. 생성물과 테스트 결과는 작업별로 캐시하며, 배포 작업은 빌드 산출물의 해시를 그대로 승격합니다.
 
 ## 13. 성능 예산
 
 | 항목 | 예산 |
 |---|---:|
-| 제품 홈 초기 JavaScript gzip | 170KB 이하 |
-| 마케팅 랜딩 초기 JavaScript gzip | 90KB 이하 |
+| 제품 홈 초기 JavaScript gzip | 185KiB 이하 |
+| 그 밖의 주요 경로 초기 JavaScript gzip | 170KiB 이하 |
 | LCP 이미지 전송량 | 120KB 이하 |
 | 모바일 LCP p75 | 2.5초 이하 |
 | INP p75 | 200ms 이하 |
 | CLS p75 | 0.1 이하 |
 
-현재 프로토타입은 JavaScript 151KB gzip, CSS 5.9KB gzip, 헤더 이미지 90KB로 예산 안에 들어옵니다. 프로덕션에서는 번들 분석과 실제 사용자 성능 측정을 CI 및 관측 대시보드에 연결합니다.
+현재 프로덕션 웹은 경로별 gzip 예산을 GitHub Actions에서 검사하고 Core Web Vitals를 제품 내 그로스 관제에 저장합니다. 보호된 프로토타입도 별도 빌드와 브라우저 시나리오로 회귀를 확인합니다. 최신 수치는 [성능 관측성과 품질 예산](OBSERVABILITY.md)에 기록합니다.
 
 ## 14. 오류와 복구
 
 - 각 주요 route segment에 `loading.tsx`, `error.tsx`, `not-found.tsx`를 둡니다.
-- 발송 요청은 클라이언트 재시도와 서버 멱등성을 함께 사용합니다.
+- 새 발송 요청은 서버 생성 멱등 키로 중복을 막고, 공급자 전달에 실패한 메시지만 사용자가 같은 기록에서 명시적으로 재접수합니다.
 - 채널 장애 시 사용자에게 `실패`와 `예약 대기`를 구분해 보여줍니다.
 - 실험 시스템 장애 시 기본안으로 안전하게 폴백하고 제품 행동은 계속 가능해야 합니다.

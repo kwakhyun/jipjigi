@@ -45,8 +45,10 @@ HTTPS 주소로 빌드한 프로덕션 이미지에서만 HSTS 헤더를 활성�
 
 1. `message_dispatches`에서 `failed`, `scheduled` 수를 확인합니다.
 2. 공급자 장애 중에는 새로운 요청을 `scheduled`로 유지합니다.
-3. 동일한 `idempotency_key`로 재시도해 중복 발송을 막습니다.
-4. 복구 후 공급자 메시지 ID로 웹훅 누락분을 대조합니다.
+3. 실패 건은 메시지 센터에서 같은 메시지 ID로 재접수해 `retry_count`를 올립니다. 새 논리 요청을 만들지 않으므로 기존 멱등 키가 유지됩니다.
+4. 복구 후 공급자 메시지 ID로 `/api/webhooks/messages` 전달 상태 누락분을 대조합니다.
+5. 갱신 답변은 `/api/webhooks/renewal-responses`와 `renewal_response_events`를 대조합니다.
+6. `opted_out` 웹훅은 계약의 연락 동의를 해제하므로 오탐이 의심되면 원본 공급자 기록을 먼저 확인합니다.
 
 ## 데이터 복구
 

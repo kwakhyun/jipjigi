@@ -3,7 +3,6 @@
 import { useState, useTransition, type FormEvent } from "react";
 import { CalendarIcon, CheckCircledIcon, ClockIcon, GearIcon, HomeIcon } from "@radix-ui/react-icons";
 import type { MaintenanceRow } from "@/lib/data/repository";
-import { track } from "@/lib/analytics/client";
 import { formatKoreanScheduleDateTime, relativeDayLabel } from "@/lib/format/date";
 import { useTransientMessage } from "@/lib/hooks/use-transient-message";
 import { submitOperation } from "@/lib/operations/client";
@@ -31,7 +30,6 @@ export function MaintenanceView({
         await submitOperation({ type: "update_maintenance", requestId: request.id, status: "completed" });
         const updatedAt = new Date().toISOString();
         setRequests((current) => current.map((item) => item.id === request.id ? { ...item, status: "completed", completedAt: updatedAt } : item));
-        track("maintenance_updated", { request_id: request.id, unit_id: request.unitName, outcome: "completed" });
         showToast("수리 요청을 완료 처리했어요.");
       } catch (error) {
         showToast(error instanceof Error ? error.message : "상태를 변경하지 못했습니다.");
@@ -52,7 +50,6 @@ export function MaintenanceView({
         setRequests((current) => current.map((item) => item.id === request.id ? { ...item, status: "scheduled", scheduledAt } : item));
         setSchedulingId(null);
         setScheduleValue("");
-        track("maintenance_updated", { request_id: request.id, unit_id: request.unitName, outcome: "scheduled" });
         showToast(`${formatKoreanScheduleDateTime(scheduledAt)} 방문으로 저장했어요.`);
       } catch (error) {
         showToast(error instanceof Error ? error.message : "방문 일정을 저장하지 못했습니다.");

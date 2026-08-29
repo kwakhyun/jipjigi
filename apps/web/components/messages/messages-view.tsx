@@ -4,7 +4,6 @@ import { useMemo, useState, useTransition } from "react";
 import { CheckCircledIcon, ClockIcon, InfoCircledIcon, LockClosedIcon, PaperPlaneIcon } from "@radix-ui/react-icons";
 import type { MessageDispatchOperationResult } from "@jipjigi/domain";
 import type { ContractRow, LedgerRow, MessageRow } from "@/lib/data/repository";
-import { track } from "@/lib/analytics/client";
 import { useTransientMessage } from "@/lib/hooks/use-transient-message";
 import { submitOperation } from "@/lib/operations/client";
 
@@ -12,8 +11,8 @@ type Target = { kind: "charge" | "lease"; id: string; label: string; recipient: 
 
 async function sendTarget(target: Target): Promise<MessageDispatchOperationResult> {
   const result = target.kind === "charge"
-    ? await submitOperation({ type: "send_overdue_notice", chargeId: target.id, idempotencyKey: crypto.randomUUID() })
-    : await submitOperation({ type: "start_renewal", leaseId: target.id, idempotencyKey: crypto.randomUUID() });
+    ? await submitOperation({ type: "send_overdue_notice", chargeId: target.id })
+    : await submitOperation({ type: "start_renewal", leaseId: target.id });
   if (!("id" in result)) throw new Error("메시지 접수 결과를 확인하지 못했습니다.");
   return result;
 }
@@ -25,6 +24,7 @@ export function MessagesView({ initialMessages, contracts, charges }: { initialM
   ], [charges, contracts]);
   const [selectedId, setSelectedId] = useState(targets[0]?.id ?? "");
   const [messages, setMessages] = useState(initialMessages);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [toast, showToast] = useTransientMessage(3_000);
   const selected = targets.find((target) => target.id === selectedId) ?? targets[0];
@@ -34,7 +34,7 @@ export function MessagesView({ initialMessages, contracts, charges }: { initialM
     startTransition(async () => {
       try {
         const result = await sendTarget(selected);
-        setMessages((current) => [{
+        const nextMessage: MessageRow = {
           id: result.id,
           entityType: selected.kind,
           entityId: selected.id,
@@ -44,11 +44,40 @@ export function MessagesView({ initialMessages, contracts, charges }: { initialM
           guardrailReason: result.guardrailReason,
           scheduledFor: result.scheduledFor,
           createdAt: new Date().toISOString(),
-        }, ...current]);
-        track("crm_message_dispatched", { channel: "sandbox_alimtalk", outcome: result.status, [selected.kind === "charge" ? "charge_id" : "lease_id"]: selected.id });
-        showToast(result.status === "scheduled" ? "현재는 발송 제한 시간이라 다음 발송 가능 시간으로 예약했어요." : result.status === "blocked" ? "발송 제한 기준에 따라 메시지를 차단했어요." : "테스트 메시지를 접수했어요.");
+          updatedAt: new Date().toISOString(),
+          deliveredAt: null,
+          retryCount: result.retryCount,
+        };
+        setMessages((current) => {
+          if (result.duplicate) return current.some((message) => message.id === result.id) ? current : [nextMessage, ...current];
+          return [nextMessage, ...current.filter((message) => message.id !== result.id)];
+        });
+        showToast(result.duplicate ? "같은 대상에 접수된 기존 메시지를 보여드려요." : result.status === "scheduled" ? "현재는 발송 제한 시간이라 다음 발송 가능 시간으로 예약했어요." : result.status === "blocked" ? "발송 제한 기준에 따라 메시지를 차단했어요." : "테스트 메시지를 접수했어요.");
       } catch (error) {
         showToast(error instanceof Error ? error.message : "메시지를 접수하지 못했습니다.");
+      }
+    });
+  };
+
+  const retry = (message: MessageRow) => {
+    setRetryingId(message.id);
+    startTransition(async () => {
+      try {
+        const result = await submitOperation({ type: "retry_message", messageId: message.id });
+        if (!("id" in result)) throw new Error("재접수 결과를 확인하지 못했습니다.");
+        setMessages((current) => current.map((item) => item.id === message.id ? {
+          ...item,
+          status: result.status,
+          guardrailReason: result.guardrailReason,
+          scheduledFor: result.scheduledFor,
+          updatedAt: new Date().toISOString(),
+          retryCount: result.retryCount,
+        } : item));
+        showToast(result.status === "scheduled" ? "발송 가능 시간으로 다시 예약했어요." : result.status === "blocked" ? "현재 발송 조건을 충족하지 못해 차단했어요." : "실패한 메시지를 다시 접수했어요.");
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : "메시지를 다시 접수하지 못했습니다.");
+      } finally {
+        setRetryingId(null);
       }
     });
   };
@@ -67,13 +96,13 @@ export function MessagesView({ initialMessages, contracts, charges }: { initialM
               <span className="message-preview-channel">집지기 알림</span>
               <strong>{selected.recipient}님께 보낼 내용</strong>
               <p>{selected.template}</p>
-              <small>수신 거부는 앱 설정에서 변경할 수 있습니다.</small>
+              <small>안내 수신을 원하지 않으면 메시지의 문의 경로에서 요청할 수 있습니다.</small>
             </div>
           ) : <div className="empty-state"><CheckCircledIcon /><strong>지금 보낼 메시지가 없어요.</strong></div>}
           <div className="guardrail-checklist" aria-label="발송 전 자동 점검">
             <span><CheckCircledIcon /> 수신 동의 확인</span>
             <span><ClockIcon /> 오후 9시부터 오전 8시까지 예약</span>
-            <span><LockClosedIcon /> 최근 7일간 최대 2회</span>
+            <span><LockClosedIcon /> 갱신은 24시간 1회, 미납은 청구월 1회</span>
           </div>
           <button className="button button-primary button-wide" type="button" disabled={!selected || isPending} onClick={send}><PaperPlaneIcon /> {isPending ? "발송 조건 확인 중…" : "발송 조건 확인 후 접수"}</button>
           <p className="sandbox-disclaimer"><InfoCircledIcon /> 이 포트폴리오 환경에서는 실제 알림톡을 보내지 않습니다. 실제 서비스에서는 공급자 연동만 교체해 같은 계약과 상태 데이터를 사용할 수 있습니다.</p>
@@ -85,7 +114,7 @@ export function MessagesView({ initialMessages, contracts, charges }: { initialM
               <article className="outbox-row" key={message.id}>
                 <span className={`channel-icon status-${message.status}`}><PaperPlaneIcon /></span>
                 <div><strong>{templateLabel(message.templateKey)}</strong><p>{message.channel === "sandbox_alimtalk" ? "샌드박스 알림톡" : "앱 푸시"} · {message.entityId.replace(/^(charge|lease)-/, "")}</p><time dateTime={message.createdAt}>{formatDateTime(message.createdAt)}</time></div>
-                <MessageStatus message={message} />
+                <div className="outbox-status-actions"><MessageStatus message={message} />{message.status === "failed" ? <button className="button button-secondary button-small" type="button" disabled={isPending} onClick={() => retry(message)}>{retryingId === message.id ? "재접수 중…" : "다시 접수"}</button> : null}</div>
               </article>
             ))}
             {messages.length === 0 ? <div className="empty-state"><PaperPlaneIcon /><strong>아직 발송 이력이 없어요.</strong><span>첫 메시지를 접수하면 발송 상태가 여기에 표시됩니다.</span></div> : null}
@@ -99,7 +128,7 @@ export function MessagesView({ initialMessages, contracts, charges }: { initialM
 
 function MessageStatus({ message }: { message: MessageRow }) {
   const labels: Record<MessageRow["status"], string> = { accepted: "접수", scheduled: "예약", delivered: "전달", blocked: "차단", failed: "실패" };
-  return <span className={`status-badge status-${message.status}`} title={message.guardrailReason ?? undefined}>{labels[message.status]}</span>;
+  return <span className={`status-badge status-${message.status}`} title={message.guardrailReason ?? undefined}>{labels[message.status]}{message.retryCount ? ` · ${message.retryCount}차 재접수` : ""}</span>;
 }
 
 function templateLabel(key: string) {

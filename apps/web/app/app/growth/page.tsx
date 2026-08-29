@@ -12,11 +12,18 @@ const eventLabels: Record<string, string> = {
   page_viewed: "화면 조회",
   experiment_exposed: "실험 노출",
   briefing_opened: "브리핑 탐색",
+  risk_evidence_opened: "위험 근거 확인",
   renewal_started: "갱신 조치",
   overdue_notice_requested: "미납 안내",
   payment_marked: "입금 확인",
   maintenance_updated: "수리 상태 변경",
-  crm_message_dispatched: "메시지 접수",
+  notification_preferences_updated: "알림 설정 변경",
+  crm_message_requested: "메시지 접수",
+  crm_guardrail_blocked: "발송 조건 차단",
+  crm_message_delivery_updated: "메시지 전달 결과",
+  crm_message_retry_requested: "메시지 재접수",
+  crm_opted_out: "채널 수신 해제",
+  renewal_response_recorded: "갱신 응답",
 };
 
 export default async function GrowthPage() {
@@ -31,6 +38,7 @@ export default async function GrowthPage() {
   const maxEvent = Math.max(...overview.eventCounts.map((item) => item.count), 1);
   const assignedUsers = overview.assignmentCounts.reduce((sum, item) => sum + item.count, 0);
   const riskFirstUsers = overview.assignmentCounts.find((item) => item.variant === "risk-first")?.count ?? 0;
+  const experimentResult = (variant: "risk-first" | "agenda-first") => overview.experimentResults.find((item) => item.variant === variant);
 
   return (
     <div className="standard-page growth-page">
@@ -40,6 +48,14 @@ export default async function GrowthPage() {
         <GrowthKpi icon={<TargetIcon />} label="운영 조치" value={actions} detail={views ? `조회 대비 ${Math.round((actions / views) * 100)}%` : "아직 실행된 조치 없음"} />
         <GrowthKpi icon={<PaperPlaneIcon />} label="메시지 요청" value={messages} detail="접수, 예약, 차단 포함" />
         <GrowthKpi icon={<ExclamationTriangleIcon />} label="발송 차단" value={blocked} detail="수신 동의와 발송 횟수 제한" />
+      </section>
+      <section className="surface-card crm-guardrail-card" aria-labelledby="crm-guardrail-title">
+        <div className="data-section-header"><div><span className="section-kicker" aria-hidden="true">CRM 안전 지표</span><h2 id="crm-guardrail-title">전달 성과와 사용자 통제권</h2><p>메시지 성과는 전달률뿐 아니라 수신 해제율과 차단률을 함께 판단합니다.</p></div></div>
+        <div className="crm-guardrail-grid">
+          <GrowthRate label="전달률" value={formatRate(overview.crmGuardrails.deliveryRate)} detail="공급자 전달 완료 / 전달 시도" />
+          <GrowthRate label="7일 수신 해제율" value={formatRate(overview.crmGuardrails.optOutRate)} detail={`${overview.crmGuardrails.optOuts}명 해제 / ${overview.crmGuardrails.deliveredRecipients}명 전달`} />
+          <GrowthRate label="발송 차단률" value={formatRate(overview.crmGuardrails.blockedRate)} detail="수신 동의와 발송 횟수 제한" />
+        </div>
       </section>
       <section className="surface-card rum-card" aria-labelledby="rum-title">
         <div className="data-section-header">
@@ -66,7 +82,11 @@ export default async function GrowthPage() {
           <div className="data-section-header"><div><span className="section-kicker" aria-hidden="true">실험</span><h2 id="experiment-title">홈 브리핑 우선순위</h2><p>확인이 시급한 항목을 먼저 보여줄 때 조치율이 높아지는지 검증합니다.</p></div><span className="experiment-active"><span /> 진행 중</span></div>
           <div className="experiment-definition">
             <div><span>배정 현황</span><strong>{assignedUsers ? `위험 우선 ${Math.round((riskFirstUsers / assignedUsers) * 100)}%` : "배정 대기"}</strong><small>총 {assignedUsers.toLocaleString("ko-KR")}명 배정</small></div>
-            <div><span>주요 지표</span><strong>브리핑 조치율</strong><small>갱신, 미납, 수리 조치 실행</small></div>
+            {(["risk-first", "agenda-first"] as const).map((variant) => {
+              const result = experimentResult(variant);
+              const rate = result?.exposedUsers ? Math.round((result.actionUsers / result.exposedUsers) * 1000) / 10 : null;
+              return <div key={variant}><span>{variant === "risk-first" ? "위험 우선안" : "일정 우선안"}</span><strong>{formatRate(rate)}</strong><small>{result?.actionUsers ?? 0}명 조치 / {result?.exposedUsers ?? 0}명 노출</small></div>;
+            })}
             <div><span>안전 지표</span><strong>발송 차단률</strong><small>수신 동의, 발송 횟수, 제한 시간</small></div>
           </div>
           <div className="experiment-principle"><CheckCircledIcon /><p><strong>노출 이벤트를 먼저 기록합니다.</strong> 실험안을 배정받았지만 실제 화면을 보지 않은 사용자는 분모에서 제외해 결과가 흐려지는 것을 막습니다.</p></div>
@@ -83,7 +103,8 @@ export default async function GrowthPage() {
         <div className="event-stream-list">
           {overview.recentEvents.map((event) => {
             const properties = parseEventProperties(event.propertiesJson);
-            return <article key={event.id}><span className="event-icon"><TargetIcon /></span><div><strong>{eventLabels[event.name] ?? event.name}</strong><p>{event.path}</p><small>{Object.entries(properties).map(([key, value]) => `${propertyLabel(key)}: ${propertyValue(String(value))}`).join(", ") || "추가 속성 없음"}</small></div><time dateTime={event.occurredAt}>{formatTime(event.occurredAt)}</time></article>;
+            const context = [`릴리스 ${event.releaseVersion}`, event.experimentKey && event.variant ? `${propertyValue(event.variant)} 실험` : null, `${event.userSegment} 세그먼트`].filter(Boolean).join(" · ");
+            return <article key={event.id}><span className="event-icon"><TargetIcon /></span><div><strong>{eventLabels[event.name] ?? event.name}</strong><p>{event.path} · {context}</p><small>{Object.entries(properties).map(([key, value]) => `${propertyLabel(key)}: ${propertyValue(String(value))}`).join(", ") || "추가 속성 없음"}</small></div><time dateTime={event.occurredAt}>{formatTime(event.occurredAt)}</time></article>;
           })}
           {!overview.recentEvents.length ? <div className="empty-state"><CheckCircledIcon /><strong>이벤트 수집 준비가 끝났어요.</strong><span>사용자 행동이 생기면 수 초 안에 표시됩니다.</span></div> : null}
         </div>
@@ -101,8 +122,16 @@ function GrowthKpi({ icon, label, value, detail }: { icon: React.ReactNode; labe
   return <article className="growth-kpi"><span className="growth-kpi-icon">{icon}</span><div><span>{label}</span><strong>{value.toLocaleString("ko-KR")}</strong><small>{detail}</small></div></article>;
 }
 
+function GrowthRate({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return <article><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>;
+}
+
+function formatRate(value: number | null) {
+  return value === null ? "수집 대기" : `${value.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%`;
+}
+
 function propertyLabel(key: string) {
-  return ({ experiment_key: "실험 키", variant: "실험안", source: "유입 위치", outcome: "처리 결과" } as Record<string, string>)[key] ?? key;
+  return ({ experiment_key: "실험 키", variant: "실험안", source: "유입 위치", outcome: "처리 결과", risk_type: "위험 유형", provider_status: "전달 결과", retry_count: "재접수 횟수", response: "임차인 응답", billing_period: "청구월" } as Record<string, string>)[key] ?? key;
 }
 
 function propertyValue(value: string) {

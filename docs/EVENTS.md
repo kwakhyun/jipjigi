@@ -12,15 +12,21 @@ type ProductEvent<TName extends EventName, TProperties> = {
   anonymousId: string;
   sessionId: string;
   path: string;
+  context: {
+    releaseVersion: string;
+    experimentKey: string | null;
+    variant: string | null;
+    userSegment: string;
+  };
   properties: TProperties;
 };
 ```
 
-`eventId`는 클라이언트에서 만들고 서버의 기본 키와 `INSERT OR IGNORE`로 중복 제거합니다. 인증 사용자 ID와 수신 시각은 서버가 덧붙입니다. 개인정보 원문, 주소, 전화번호, 메시지 본문은 이벤트에 넣지 않습니다.
+브라우저 이벤트의 `eventId`는 클라이언트에서 만들고 서버의 기본 키와 `INSERT OR IGNORE`로 중복 제거합니다. 변경 작업과 웹훅 이벤트는 서버가 ID를 만듭니다. 릴리스 버전은 서버 환경에서 확정하고, 인증 사용자 ID, 사용자 세그먼트와 실험 배정도 서버가 다시 확인한 뒤 수신 시각을 덧붙입니다. 개인정보 원문, 주소, 전화번호, 메시지 본문은 이벤트에 넣지 않습니다.
 
 ## 2. 이름 규칙
 
-- 완료된 사실을 과거형으로 기록합니다. 예: `renewal_request_sent`
+- 완료된 사실을 과거형으로 기록합니다. 예: `renewal_started`
 - 화면 노출과 사용자 클릭을 구분합니다.
 - 의미가 다른 이벤트를 하나의 `button_clicked`로 합치지 않습니다.
 - 속성 이름은 `snake_case`를 사용합니다.
@@ -33,12 +39,18 @@ type ProductEvent<TName extends EventName, TProperties> = {
 | `page_viewed` | 인증 화면의 경로가 바뀐 뒤 | 없음 | 1.5초 내 같은 경로 클라이언트 중복 억제 |
 | `experiment_exposed` | 배정된 브리핑 UI가 실제 렌더된 직후 | experiment_key, variant | 세션 저장소 + eventId |
 | `briefing_opened` | 사용자가 관리 건물을 바꾼 뒤 | building_id, source | eventId |
+| `risk_evidence_opened` | 위험 카드의 판단 근거를 펼친 뒤 | risk_type, entity id, source | eventId |
 | `renewal_started` | 서버가 갱신 확인 요청을 수락한 뒤 | lease_id, channel | 메시지 idempotencyKey + eventId |
 | `overdue_notice_requested` | 서버가 미납 안내를 수락한 뒤 | charge_id, channel | 메시지 idempotencyKey + eventId |
 | `payment_marked` | 청구가 납부 완료로 바뀐 뒤 | charge_id, unit_id, outcome | 서버 상태 + eventId |
 | `maintenance_updated` | 수리 처리 단계가 바뀐 뒤 | request_id, outcome | 서버 상태 + eventId |
-| `crm_message_dispatched` | 메시지 센터에서 요청 결과를 받은 뒤 | channel, outcome, entity id | 메시지 idempotencyKey + eventId |
+| `notification_preferences_updated` | 서버가 알림 설정 변경을 저장한 뒤 | outcome, source | 서버 상태 + eventId |
+| `crm_message_requested` | 서버가 메시지 요청을 접수, 예약 또는 차단한 뒤 | channel, outcome, entity id | 서버 멱등 키 + eventId |
 | `crm_guardrail_blocked` | 동의 또는 빈도 제한으로 발송이 차단된 뒤 | channel, reason, entity id | 메시지 idempotencyKey + eventId |
+| `crm_message_delivery_updated` | 서명된 공급자 웹훅으로 전달 또는 실패 상태가 바뀐 뒤 | message_id, provider_status, retry_count | 공급자 상태 + eventId |
+| `crm_message_retry_requested` | 실패한 메시지를 같은 기록에서 다시 접수한 뒤 | message_id, retry_count, outcome | 메시지 ID + retry_count |
+| `crm_opted_out` | 공급자 웹훅으로 임차인의 채널 수신 해제를 확인한 뒤 | lease_id, channel | lease_id + channel |
+| `renewal_response_recorded` | 갱신 요청에 대한 임차인 응답 웹훅을 저장한 뒤 | lease_id, response | dispatch + response + provider time |
 | `seo_cta_clicked` | 지역 랜딩의 전환 CTA를 누른 뒤 | source | eventId |
 
 ## 4. 구현 위치
@@ -47,7 +59,10 @@ type ProductEvent<TName extends EventName, TProperties> = {
 
 ```text
 building_id, unit_id, lease_id, charge_id, request_id,
-experiment_key, variant, source, channel, outcome, reason
+message_id, risk_signal_id, risk_type, reason_code,
+experiment_key, variant, source, channel, outcome, reason,
+template_version, consent_checked, quiet_hours_applied,
+provider_status, retry_count, billing_period, response
 ```
 
 그 밖의 키는 값과 함께 버립니다. 보호된 `prototype`은 시각 검증을 위해 별도 로컬 이벤트를 유지하지만 프로덕션 지표에는 합치지 않습니다.
@@ -61,7 +76,8 @@ experiment_key, variant, source, channel, outcome, reason
 | `charge_id` | string | 청구월 단위 식별자 |
 | `risk_signal_id` | string | 위험 신호 식별자 |
 | `reason_code` | enum | `lease_expiring`, `payment_overdue`, `maintenance_urgent` |
-| `channel` | enum | `push`, `alimtalk`, `in_app` |
+| `risk_type` | enum | `lease_expiring`, `payment_overdue`, `maintenance_urgent` |
+| `channel` | enum | 현재 `sandbox_alimtalk`, 후속 공급자 연결 시 `alimtalk`, `push` |
 | `template_version` | string | 승인된 메시지 템플릿 버전 |
 | `consent_checked` | boolean | 발송 시점 동의 스냅샷 확인 여부 |
 | `quiet_hours_applied` | boolean | 야간 제한 적용 여부 |
@@ -75,11 +91,11 @@ experiment_key, variant, source, channel, outcome, reason
 experiment_exposed
   → briefing_opened
   → renewal_started or overdue_notice_requested or maintenance_updated
-  → provider delivery webhook or payment_marked
+  → crm_message_delivery_updated or payment_marked
 ```
 
 - 첫 노출 뒤 24시간 안의 첫 행동만 핵심 전환으로 인정합니다.
-- 여러 기기에서 발생한 이벤트는 `actor_id`로 합칩니다.
+- 여러 기기에서 발생한 이벤트는 서버가 저장한 `user_id`로 합칩니다.
 - 실험 배정 뒤 변형이 바뀐 사용자는 분석에서 제외하고 배정 오류로 별도 집계합니다.
 - 발송 요청과 실제 전달 성공을 같은 이벤트로 합치지 않습니다.
 
@@ -101,8 +117,9 @@ complaint rate = CRM-related support cases / users delivered
 3. 발송 실패를 `sent`로 기록하지 않습니다.
 4. 멱등 키 재시도는 분석 이벤트를 중복 생성하지 않습니다.
 5. 이벤트 속성에 주소, 전화번호, 메시지 본문이 포함되지 않습니다.
-6. 웹과 앱이 같은 스키마 버전을 사용합니다.
-7. 릴리스 전에 스테이징 이벤트가 별도 데이터셋으로 들어갑니다.
+6. 현재 웹과 서버 이벤트가 같은 `packages/analytics` 스키마를 사용합니다.
+7. React Native 도입 시 같은 스키마 버전과 호환성 테스트를 사용합니다.
+8. 운영 웨어하우스 도입 시 스테이징 이벤트를 별도 데이터셋으로 분리합니다.
 
 ## 9. 보존과 변경
 

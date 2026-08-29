@@ -22,10 +22,10 @@
 
 | 경로 | gzip 합산 | 예산 |
 |---|---:|---:|
-| `/` | 151.6KiB | 170KiB |
-| `/login` | 152.0KiB | 170KiB |
-| `/app` | 171.8KiB | 185KiB |
-| `/app/growth` | 153.0KiB | 170KiB |
+| `/` | 151.7KiB | 170KiB |
+| `/login` | 147.4KiB | 170KiB |
+| `/app` | 173.5KiB | 185KiB |
+| `/app/growth` | 148.9KiB | 170KiB |
 
 이 수치는 CDN의 실제 Brotli 전송량이 아니라 재현 가능한 CI 회귀 지표입니다. 실제 사용자 경험은 RUM p75를 최종 기준으로 판단합니다.
 

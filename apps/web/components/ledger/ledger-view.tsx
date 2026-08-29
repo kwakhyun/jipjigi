@@ -4,7 +4,6 @@ import { useMemo, useState, useTransition } from "react";
 import { CheckCircledIcon, ExclamationTriangleIcon, PaperPlaneIcon } from "@radix-ui/react-icons";
 import { formatWon } from "@jipjigi/domain/format";
 import type { LedgerRow } from "@/lib/data/repository";
-import { track } from "@/lib/analytics/client";
 import { useTransientMessage } from "@/lib/hooks/use-transient-message";
 import { submitOperation } from "@/lib/operations/client";
 
@@ -37,12 +36,10 @@ export function LedgerView({ initialRows }: { initialRows: LedgerRow[] }) {
         if (type === "mark_payment") {
           await submitOperation({ type: "mark_payment", chargeId: row.id });
           setRows((current) => current.map((item) => item.id === row.id ? { ...item, status: "paid", paidAt: new Date().toISOString() } : item));
-          track("payment_marked", { charge_id: row.id, unit_id: row.unitName, outcome: "paid" });
           showToast(`${row.unitName}의 입금을 확인하고 납부 완료로 반영했어요.`);
         } else {
-          await submitOperation({ type: "send_overdue_notice", chargeId: row.id, idempotencyKey: crypto.randomUUID() });
-          track("overdue_notice_requested", { charge_id: row.id, unit_id: row.unitName, channel: "sandbox_alimtalk" });
-          showToast(`${row.unitName} 미납 안내를 접수했어요.`);
+          const result = await submitOperation({ type: "send_overdue_notice", chargeId: row.id });
+          showToast("id" in result && result.status === "blocked" ? `${row.unitName}은 발송 조건을 충족하지 못해 안내를 차단했어요.` : "duplicate" in result && result.duplicate ? `${row.unitName}에는 이번 청구월 안내가 이미 접수돼 있어요.` : `${row.unitName} 미납 안내를 접수했어요.`);
         }
       } catch (error) {
         showToast(error instanceof Error ? error.message : "작업을 처리하지 못했습니다.");

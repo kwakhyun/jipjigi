@@ -1,9 +1,10 @@
 import "server-only";
 
 import type { Operation, OperationResult } from "@jipjigi/domain";
+import { recordServerProductEvent } from "@/lib/analytics/server";
 import { getDatabase } from "@/lib/db/client";
 import { writeAudit } from "@/lib/data/repository";
-import { dispatchTransactionalMessage } from "@/lib/messaging/service";
+import { dispatchTransactionalMessage, MessageDispatchError, retryTransactionalMessage } from "@/lib/messaging/service";
 
 export class OperationError extends Error {
   constructor(
@@ -30,6 +31,7 @@ function markPayment(userId: string, chargeId: string) {
 
   db.prepare("UPDATE charges SET status = 'paid', paid_at = ? WHERE id = ?").run(new Date().toISOString(), chargeId);
   writeAudit(userId, "payment_marked", "charge", chargeId);
+  recordServerProductEvent("payment_marked", userId, "/app/ledger", { charge_id: chargeId, outcome: "paid" });
   return { status: "paid" as const, unchanged: false };
 }
 
@@ -70,30 +72,36 @@ function updateMaintenance(
     status,
     ...(scheduledAt ? { scheduledAt } : {}),
   });
+  recordServerProductEvent("maintenance_updated", userId, "/app/maintenance", { request_id: requestId, outcome: status });
   return { status, unchanged: false };
 }
 
 export function runOperation(userId: string, operation: Operation): OperationResult {
-  switch (operation.type) {
-    case "mark_payment":
-      return markPayment(userId, operation.chargeId);
-    case "send_overdue_notice":
-      return dispatchTransactionalMessage({
-        userId,
-        entityType: "charge",
-        entityId: operation.chargeId,
-        templateKey: "overdue_notice_v1",
-        idempotencyKey: operation.idempotencyKey,
-      });
-    case "start_renewal":
-      return dispatchTransactionalMessage({
-        userId,
-        entityType: "lease",
-        entityId: operation.leaseId,
-        templateKey: "renewal_check_v1",
-        idempotencyKey: operation.idempotencyKey,
-      });
-    case "update_maintenance":
-      return updateMaintenance(userId, operation.requestId, operation.status, operation.scheduledAt);
+  try {
+    switch (operation.type) {
+      case "mark_payment":
+        return markPayment(userId, operation.chargeId);
+      case "send_overdue_notice":
+        return dispatchTransactionalMessage({
+          userId,
+          entityType: "charge",
+          entityId: operation.chargeId,
+          templateKey: "overdue_notice_v1",
+        });
+      case "start_renewal":
+        return dispatchTransactionalMessage({
+          userId,
+          entityType: "lease",
+          entityId: operation.leaseId,
+          templateKey: "renewal_check_v1",
+        });
+      case "retry_message":
+        return retryTransactionalMessage(userId, operation.messageId);
+      case "update_maintenance":
+        return updateMaintenance(userId, operation.requestId, operation.status, operation.scheduledAt);
+    }
+  } catch (error) {
+    if (error instanceof MessageDispatchError) throw new OperationError(error.code, error.message, error.code === "NOT_FOUND" ? 404 : 409);
+    throw error;
   }
 }

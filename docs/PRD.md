@@ -2,7 +2,7 @@
 
 문서 버전: 1.0
 기준일: 2026-08-29
-상태: 시각 프로토타입과 프로덕션 웹 MVP 구현 완료, 외부 공급자 연동 전
+상태: 시각 프로토타입과 프로덕션 웹 MVP 구현 완료, 실제 CRM 공급자와 영속 운영 데이터베이스 연동 전
 
 ## 1. 제품 한 문장
 
@@ -102,6 +102,7 @@
 완료 조건:
 
 - 같은 계약에는 24시간 안에 중복 요청을 보내지 않습니다.
+- 계약별 발송은 최근 7일 동안 최대 2회로 제한합니다.
 - 성공, 실패, 재시도 상태가 구분됩니다.
 - 임차인의 응답은 계약 단위 타임라인에 기록됩니다.
 
@@ -114,7 +115,7 @@
 
 완료 조건:
 
-- 사용자, 계약, 청구월 조합으로 멱등 키를 만듭니다.
+- 서버가 사용자, 계약, 청구월 조합으로 멱등 키를 만들고 같은 청구월에는 한 번만 접수합니다.
 - 발송 요청과 실제 채널 수신 결과를 별도 이벤트로 기록합니다.
 - 수신 해제율은 실험 가드레일 대시보드에 포함합니다.
 
@@ -161,7 +162,9 @@
 | Charge | id, leaseId, billingMonth, amount, dueAt, paidAt, status |
 | MaintenanceRequest | id, unitId, category, severity, receivedAt, status |
 | RiskSignal | id, entityType, entityId, reasonCode, evidence, expiresAt |
-| MessageDispatch | id, templateId, channel, consentSnapshot, status, idempotencyKey |
+| MessageDispatch | id, templateId, templateVersion, channel, consentSnapshot, status, idempotencyKey, retryCount |
+| MessageDeliveryEvent | dispatchId, status, retryCount, providerOccurredAt |
+| RenewalResponseEvent | dispatchId, leaseId, response, providerOccurredAt |
 | ExperimentAssignment | experimentId, subjectId, variant, assignedAt |
 | ProductEvent | eventId, actorId, eventName, properties, occurredAt |
 
@@ -180,13 +183,13 @@
 ### 성능
 
 - 모바일 홈 LCP 2.5초 이하, INP 200ms 이하를 목표로 합니다.
-- 홈 초기 JavaScript gzip 예산은 170KB 이하입니다.
+- 제품 홈 초기 JavaScript gzip 예산은 185KiB 이하이며, 나머지 주요 경로는 170KiB 이하입니다.
 - 헤더 이미지는 100KB 안팎으로 제공하고 화면 크기에 맞는 포맷을 사용합니다.
 - 제품 데이터는 서버 렌더링 초기값을 전달하고, 클라이언트 재요청 폭포를 피합니다.
 
 ### 신뢰성과 보안
 
-- 발송 API는 멱등 키를 필수로 받습니다.
+- 발송 서비스는 사용자와 계약, 목적별 기간으로 멱등 키를 반드시 생성합니다.
 - 채널 웹훅은 서명 검증 후 상태를 갱신합니다.
 - 사용자 입력과 외부 채널 응답은 런타임 스키마로 검증합니다.
 - 서버 로그에서 개인정보를 마스킹합니다.

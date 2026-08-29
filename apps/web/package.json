@@ -23,7 +23,6 @@
     "bcryptjs": "3.0.3",
     "better-sqlite3": "13.0.3",
     "clsx": "2.1.1",
-    "drizzle-orm": "0.45.2",
     "jose": "6.2.10",
     "jotai": "2.20.3",
     "next": "16.3.3",

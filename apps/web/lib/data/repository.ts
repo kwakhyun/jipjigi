@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import type { DashboardSnapshot, NotificationPreferences } from "@jipjigi/domain";
 import { assignVariant, briefingPriorityExperiment, type BriefingVariant } from "@jipjigi/experiments";
+import { recordServerProductEvent } from "@/lib/analytics/server";
 import { getDatabase } from "@/lib/db/client";
 import { CORE_WEB_VITAL_TARGETS, type CoreWebVitalName } from "@/lib/performance/schema";
 
@@ -29,6 +30,15 @@ export type ContractRow = {
   monthlyRent: number;
   renewalStatus: "none" | "attention" | "requested" | "agreed" | "ended";
   buildingName: string;
+  timeline: ContractTimelineEvent[];
+};
+
+export type ContractTimelineEvent = {
+  id: string;
+  kind: "message" | "response";
+  status: "scheduled" | "accepted" | "delivered" | "blocked" | "failed" | "agreed" | "declined";
+  occurredAt: string;
+  retryCount: number;
 };
 
 export type MaintenanceRow = {
@@ -54,6 +64,9 @@ export type MessageRow = {
   guardrailReason: string | null;
   scheduledFor: string | null;
   createdAt: string;
+  updatedAt: string;
+  deliveredAt: string | null;
+  retryCount: number;
 };
 
 export function getUserByEmail(email: string) {
@@ -223,7 +236,8 @@ export function listLedger(userId: string) {
 }
 
 export function listContracts(userId: string) {
-  return getDatabase()
+  const db = getDatabase();
+  const contracts = db
     .prepare(
       `SELECT l.id, u.name AS unitName, l.tenant_name AS tenantName,
         l.tenant_phone_masked AS tenantPhoneMasked, l.start_date AS startDate,
@@ -235,7 +249,29 @@ export function listContracts(userId: string) {
        WHERE b.owner_id = ? AND l.status = 'active'
        ORDER BY CASE l.renewal_status WHEN 'attention' THEN 0 WHEN 'requested' THEN 1 ELSE 2 END, l.end_date`,
     )
-    .all(userId) as ContractRow[];
+    .all(userId) as Array<Omit<ContractRow, "timeline">>;
+  const timeline = db.prepare(
+    `SELECT md.entity_id AS leaseId, mde.id, 'message' AS kind, mde.status,
+      COALESCE(mde.provider_occurred_at, mde.received_at) AS occurredAt,
+      mde.retry_count AS retryCount
+     FROM message_delivery_events mde
+     JOIN message_dispatches md ON md.id = mde.dispatch_id
+     JOIN leases l ON l.id = md.entity_id
+     JOIN units u ON u.id = l.unit_id JOIN buildings b ON b.id = u.building_id
+     WHERE md.entity_type = 'lease' AND b.owner_id = ?
+     UNION ALL
+     SELECT r.lease_id AS leaseId, r.id, 'response' AS kind, r.response AS status,
+      r.provider_occurred_at AS occurredAt, 0 AS retryCount
+     FROM renewal_response_events r
+     JOIN leases l ON l.id = r.lease_id
+     JOIN units u ON u.id = l.unit_id JOIN buildings b ON b.id = u.building_id
+     WHERE b.owner_id = ?
+     ORDER BY occurredAt DESC`,
+  ).all(userId, userId) as Array<ContractTimelineEvent & { leaseId: string }>;
+  return contracts.map((contract) => ({
+    ...contract,
+    timeline: timeline.filter((event) => event.leaseId === contract.id).slice(0, 8).map(({ leaseId: _leaseId, ...event }) => event),
+  }));
 }
 
 export function listMaintenance(userId: string) {
@@ -258,7 +294,8 @@ export function listMessages(userId: string) {
     .prepare(
       `SELECT id, entity_type AS entityType, entity_id AS entityId, channel,
         template_key AS templateKey, status, guardrail_reason AS guardrailReason,
-        scheduled_for AS scheduledFor, created_at AS createdAt
+        scheduled_for AS scheduledFor, created_at AS createdAt, updated_at AS updatedAt,
+        delivered_at AS deliveredAt, retry_count AS retryCount
        FROM message_dispatches WHERE user_id = ? ORDER BY created_at DESC LIMIT 50`,
     )
     .all(userId) as MessageRow[];
@@ -299,6 +336,16 @@ export function updatePreferences(userId: string, value: NotificationPreferences
       new Date().toISOString(),
       userId,
     );
+  writeAudit(userId, "notification_preferences_updated", "notification_preferences", userId, {
+    rentReminder: value.rentReminder,
+    renewalReminder: value.renewalReminder,
+    maintenanceUpdates: value.maintenanceUpdates,
+    marketing: value.marketing,
+  });
+  recordServerProductEvent("notification_preferences_updated", userId, "/app/settings", {
+    outcome: "saved",
+    source: "settings",
+  });
   return value;
 }
 
@@ -321,19 +368,34 @@ export function getGrowthOverview() {
   const eventCounts = db
     .prepare(
       `SELECT name, COUNT(*) AS count FROM product_events
-       WHERE user_id IS NOT NULL GROUP BY name ORDER BY count DESC`,
+       WHERE user_id IS NOT NULL AND occurred_at >= datetime('now', '-7 days')
+       GROUP BY name ORDER BY count DESC`,
     )
     .all() as Array<{ name: string; count: number }>;
   const recentEvents = db
     .prepare(
-      `SELECT id, name, path, properties_json AS propertiesJson, occurred_at AS occurredAt
-       FROM product_events WHERE user_id IS NOT NULL ORDER BY occurred_at DESC LIMIT 20`,
+      `SELECT id, name, path, properties_json AS propertiesJson,
+        release_version AS releaseVersion, experiment_key AS experimentKey,
+        variant, user_segment AS userSegment, occurred_at AS occurredAt
+       FROM product_events
+       WHERE user_id IS NOT NULL AND occurred_at >= datetime('now', '-7 days')
+       ORDER BY occurred_at DESC LIMIT 20`,
     )
-    .all() as Array<{ id: string; name: string; path: string; propertiesJson: string; occurredAt: string }>;
+    .all() as Array<{
+      id: string;
+      name: string;
+      path: string;
+      propertiesJson: string;
+      releaseVersion: string;
+      experimentKey: string | null;
+      variant: string | null;
+      userSegment: string;
+      occurredAt: string;
+    }>;
   const messageStats = db
     .prepare(
       `SELECT status, COUNT(*) AS count FROM message_dispatches
-       GROUP BY status`,
+       WHERE created_at >= datetime('now', '-7 days') GROUP BY status`,
     )
     .all() as Array<{ status: string; count: number }>;
   const assignmentCounts = db
@@ -342,7 +404,54 @@ export function getGrowthOverview() {
        WHERE experiment_key = ? GROUP BY variant`,
     )
     .all(briefingPriorityExperiment.key) as Array<{ variant: BriefingVariant; count: number }>;
-  return { assignmentCounts, eventCounts, recentEvents, messageStats };
+  const experimentResults = db.prepare(
+    `WITH exposures AS (
+       SELECT user_id, variant, MIN(occurred_at) AS exposedAt
+       FROM product_events
+       WHERE experiment_key = ? AND name = 'experiment_exposed'
+         AND occurred_at >= datetime('now', '-7 days')
+         AND variant IN ('risk-first', 'agenda-first')
+       GROUP BY user_id, variant
+     ), converted AS (
+       SELECT DISTINCT e.user_id, e.variant
+       FROM exposures e JOIN product_events action ON action.user_id = e.user_id
+       WHERE action.name IN ('renewal_started', 'overdue_notice_requested', 'payment_marked', 'maintenance_updated')
+         AND julianday(action.occurred_at) BETWEEN julianday(e.exposedAt) AND julianday(e.exposedAt, '+24 hours')
+     )
+     SELECT e.variant, COUNT(*) AS exposedUsers, COUNT(c.user_id) AS actionUsers
+     FROM exposures e LEFT JOIN converted c ON c.user_id = e.user_id AND c.variant = e.variant
+     GROUP BY e.variant ORDER BY e.variant`,
+  ).all(briefingPriorityExperiment.key) as Array<{ variant: BriefingVariant; exposedUsers: number; actionUsers: number }>;
+  const deliveredRecipients = db.prepare(
+    `SELECT COUNT(DISTINCT CASE WHEN md.entity_type = 'lease' THEN md.entity_id ELSE c.lease_id END) AS count
+     FROM message_dispatches md LEFT JOIN charges c ON md.entity_type = 'charge' AND c.id = md.entity_id
+     WHERE md.status = 'delivered' AND md.delivered_at >= datetime('now', '-7 days')`,
+  ).get() as { count: number };
+  const optOuts = db.prepare(
+    `SELECT COUNT(DISTINCT o.lease_id) AS count
+     FROM crm_opt_outs o
+     WHERE o.occurred_at >= datetime('now', '-7 days')
+       AND EXISTS (
+         SELECT 1 FROM message_dispatches md
+         LEFT JOIN charges c ON md.entity_type = 'charge' AND c.id = md.entity_id
+         WHERE md.status = 'delivered' AND md.delivered_at >= datetime('now', '-7 days')
+           AND (CASE WHEN md.entity_type = 'lease' THEN md.entity_id ELSE c.lease_id END) = o.lease_id
+       )`,
+  ).get() as { count: number };
+  const acceptedAttempts = messageStats
+    .filter((item) => ["accepted", "delivered", "failed"].includes(item.status))
+    .reduce((sum, item) => sum + item.count, 0);
+  const deliveredMessages = messageStats.find((item) => item.status === "delivered")?.count ?? 0;
+  const blockedMessages = messageStats.find((item) => item.status === "blocked")?.count ?? 0;
+  const totalRequests = messageStats.reduce((sum, item) => sum + item.count, 0);
+  const crmGuardrails = {
+    deliveryRate: acceptedAttempts ? Math.round((deliveredMessages / acceptedAttempts) * 1000) / 10 : null,
+    optOutRate: deliveredRecipients.count ? Math.round((optOuts.count / deliveredRecipients.count) * 1000) / 10 : null,
+    blockedRate: totalRequests ? Math.round((blockedMessages / totalRequests) * 1000) / 10 : null,
+    deliveredRecipients: deliveredRecipients.count,
+    optOuts: optOuts.count,
+  };
+  return { assignmentCounts, experimentResults, eventCounts, recentEvents, messageStats, crmGuardrails };
 }
 
 export function getWebVitalsOverview() {

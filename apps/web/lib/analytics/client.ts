@@ -24,6 +24,7 @@ export function track(
   name: EventName,
   properties: Record<string, string | number | boolean | null> = {},
   path = window.location.pathname,
+  experiment: { experimentKey: string; variant: string } | null = null,
 ) {
   try {
     const identity = getAnalyticsIdentity();
@@ -34,6 +35,12 @@ export function track(
       sessionId: identity.sessionId,
       path,
       occurredAt: new Date().toISOString(),
+      context: {
+        releaseVersion: process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ?? "local",
+        experimentKey: experiment?.experimentKey ?? null,
+        variant: experiment?.variant ?? null,
+        userSegment: "unknown",
+      },
       properties,
     });
     void fetch("/api/events", {

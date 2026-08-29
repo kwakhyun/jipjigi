@@ -5,14 +5,15 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": [],
-      "env": ["AUTH_SECRET", "DB_FILE", "MESSAGE_WEBHOOK_SECRET", "NEXT_PUBLIC_APP_URL", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"]
+      "env": ["AUTH_SECRET", "DB_FILE", "MESSAGE_WEBHOOK_SECRET", "NEXT_PUBLIC_APP_URL", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "VERCEL_GIT_COMMIT_SHA"]
     },
     "@jipjigi/web#build": {
       "outputs": [".next/**", "!.next/cache/**"]
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "env": ["AUTH_SECRET", "DB_FILE", "MESSAGE_WEBHOOK_SECRET", "NEXT_PUBLIC_APP_URL", "ALLOW_DEMO_AUTH", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "VERCEL_GIT_COMMIT_SHA"]
     },
     "typecheck": {
       "dependsOn": ["^typecheck"],

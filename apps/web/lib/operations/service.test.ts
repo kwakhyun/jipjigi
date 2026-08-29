@@ -58,3 +58,45 @@ describe("수리 방문 일정 저장", () => {
     expect(JSON.parse(audit.metadataJson)).toMatchObject({ status: "scheduled", scheduledAt });
   });
 });
+
+describe("CRM 멱등성과 재시도", () => {
+  it("같은 청구월의 미납 안내를 하나의 서버 멱등 키로 합친다", () => {
+    const first = runOperation("owner-1", {
+      type: "send_overdue_notice",
+      chargeId: "charge-2026-08-203",
+    });
+    const second = runOperation("owner-1", {
+      type: "send_overdue_notice",
+      chargeId: "charge-2026-08-203",
+    });
+
+    expect("id" in first && "id" in second && second.id).toBe("id" in first ? first.id : "");
+    expect("duplicate" in first && first.duplicate).toBe(false);
+    expect("duplicate" in second && second.duplicate).toBe(true);
+    const rows = getDatabase().prepare(
+      "SELECT idempotency_key AS idempotencyKey FROM message_dispatches WHERE entity_id = ?",
+    ).all("charge-2026-08-203") as Array<{ idempotencyKey: string }>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.idempotencyKey).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("실패한 메시지를 같은 기록에서 재접수하고 타임라인을 남긴다", () => {
+    const first = runOperation("owner-1", {
+      type: "start_renewal",
+      leaseId: "lease-seongsu-501",
+    });
+    if (!("id" in first)) throw new Error("메시지 결과가 필요합니다.");
+    getDatabase().prepare("UPDATE message_dispatches SET status = 'failed' WHERE id = ?").run(first.id);
+
+    const retried = runOperation("owner-1", { type: "retry_message", messageId: first.id });
+    expect(retried).toMatchObject({ id: first.id, retryCount: 1, duplicate: false });
+    const timeline = getDatabase().prepare(
+      "SELECT status, retry_count AS retryCount FROM message_delivery_events WHERE dispatch_id = ? ORDER BY received_at",
+    ).all(first.id) as Array<{ status: string; retryCount: number }>;
+    expect(timeline.at(-1)).toMatchObject({ retryCount: 1 });
+    const audit = getDatabase().prepare(
+      "SELECT metadata_json AS metadataJson FROM audit_logs WHERE action = 'renewal_started' ORDER BY occurred_at DESC LIMIT 1",
+    ).get() as { metadataJson: string };
+    expect(JSON.parse(audit.metadataJson)).toMatchObject({ templateVersion: "v1", consentSnapshot: "granted" });
+  });
+});

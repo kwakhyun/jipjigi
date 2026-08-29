@@ -271,15 +271,46 @@ function initialize(db: Database.Database) {
       entity_id TEXT NOT NULL,
       channel TEXT NOT NULL CHECK(channel IN ('sandbox_alimtalk', 'push')),
       template_key TEXT NOT NULL,
+      template_version TEXT NOT NULL DEFAULT 'v1',
       idempotency_key TEXT NOT NULL UNIQUE,
       status TEXT NOT NULL CHECK(status IN ('scheduled', 'accepted', 'delivered', 'blocked', 'failed')),
       guardrail_reason TEXT,
       scheduled_for TEXT,
       provider_message_id TEXT,
+      consent_checked INTEGER NOT NULL DEFAULT 0 CHECK(consent_checked IN (0, 1)),
+      retry_count INTEGER NOT NULL DEFAULT 0,
+      delivered_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS messages_entity_created_idx ON message_dispatches(entity_type, entity_id, created_at);
+    CREATE TABLE IF NOT EXISTS message_delivery_events (
+      id TEXT PRIMARY KEY,
+      dispatch_id TEXT NOT NULL REFERENCES message_dispatches(id),
+      status TEXT NOT NULL CHECK(status IN ('scheduled', 'accepted', 'delivered', 'blocked', 'failed')),
+      retry_count INTEGER NOT NULL DEFAULT 0,
+      provider_occurred_at TEXT,
+      received_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS message_delivery_dispatch_idx ON message_delivery_events(dispatch_id, received_at);
+    CREATE TABLE IF NOT EXISTS renewal_response_events (
+      id TEXT PRIMARY KEY,
+      dispatch_id TEXT NOT NULL REFERENCES message_dispatches(id),
+      lease_id TEXT NOT NULL REFERENCES leases(id),
+      response TEXT NOT NULL CHECK(response IN ('agreed', 'declined')),
+      provider_occurred_at TEXT NOT NULL,
+      received_at TEXT NOT NULL,
+      UNIQUE(dispatch_id, response, provider_occurred_at)
+    );
+    CREATE INDEX IF NOT EXISTS renewal_response_lease_idx ON renewal_response_events(lease_id, provider_occurred_at);
+    CREATE TABLE IF NOT EXISTS crm_opt_outs (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      lease_id TEXT NOT NULL REFERENCES leases(id),
+      channel TEXT NOT NULL,
+      occurred_at TEXT NOT NULL,
+      UNIQUE(lease_id, channel)
+    );
     CREATE TABLE IF NOT EXISTS notification_preferences (
       user_id TEXT PRIMARY KEY REFERENCES users(id),
       rent_reminder INTEGER NOT NULL CHECK(rent_reminder IN (0, 1)),
@@ -306,6 +337,10 @@ function initialize(db: Database.Database) {
       name TEXT NOT NULL,
       path TEXT NOT NULL,
       properties_json TEXT NOT NULL,
+      release_version TEXT NOT NULL DEFAULT 'legacy',
+      experiment_key TEXT,
+      variant TEXT,
+      user_segment TEXT NOT NULL DEFAULT 'unknown',
       occurred_at TEXT NOT NULL,
       received_at TEXT NOT NULL
     );
@@ -339,8 +374,22 @@ function initialize(db: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS audit_user_time_idx ON audit_logs(user_id, occurred_at DESC);
   `);
+
+  const ensureColumn = (table: string, column: string, definition: string) => {
+    const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+    if (!columns.some((item) => item.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  };
+  ensureColumn("message_dispatches", "template_version", "TEXT NOT NULL DEFAULT 'v1'");
+  ensureColumn("message_dispatches", "consent_checked", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("message_dispatches", "retry_count", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("message_dispatches", "delivered_at", "TEXT");
+  ensureColumn("product_events", "release_version", "TEXT NOT NULL DEFAULT 'legacy'");
+  ensureColumn("product_events", "experiment_key", "TEXT");
+  ensureColumn("product_events", "variant", "TEXT");
+  ensureColumn("product_events", "user_segment", "TEXT NOT NULL DEFAULT 'unknown'");
   db.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (1, ?)").run(new Date().toISOString());
   db.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (2, ?)").run(new Date().toISOString());
+  db.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (3, ?)").run(new Date().toISOString());
   seedDatabase(db);
 }
 

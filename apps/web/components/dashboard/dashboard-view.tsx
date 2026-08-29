@@ -50,6 +50,13 @@ export function DashboardView({ initial, buildings, userName }: { initial: Brief
     initialData: activeBuildingId === initial.data.building.id ? initial : undefined,
   });
   const value = briefing.data ?? initial;
+  const exposedRisk = value.data.briefing.renewal
+    ? { type: "lease_expiring", id: value.data.briefing.renewal.leaseId }
+    : value.data.briefing.overdue
+      ? { type: "payment_overdue", id: value.data.briefing.overdue.chargeId }
+      : value.data.briefing.maintenance
+        ? { type: "maintenance_urgent", id: value.data.briefing.maintenance.requestId }
+        : null;
 
   useEffect(() => {
     const exposureKey = `jipjigi:exposure:${value.experiment.key}:${value.experiment.variant}`;
@@ -62,19 +69,23 @@ export function DashboardView({ initial, buildings, userName }: { initial: Brief
     track("experiment_exposed", {
       experiment_key: value.experiment.key,
       variant: value.experiment.variant,
+      risk_type: exposedRisk?.type ?? "none",
+      risk_signal_id: exposedRisk?.id ?? "none",
+    }, window.location.pathname, {
+      experimentKey: value.experiment.key,
+      variant: value.experiment.variant,
     });
-  }, [value.experiment.key, value.experiment.variant]);
+  }, [exposedRisk?.id, exposedRisk?.type, value.experiment.key, value.experiment.variant]);
 
   const operation = useMutation({
     mutationFn: submitOperation,
-    onSuccess: async (_result, variables) => {
+    onSuccess: async (result, variables) => {
       await queryClient.invalidateQueries({ queryKey: ["briefing"] });
+      const messageResult = "id" in result ? result : null;
       if (variables.type === "start_renewal") {
-        showToast("갱신 의사 확인 요청을 접수했어요.");
-        track("renewal_started", { lease_id: variables.leaseId ?? "", channel: "sandbox_alimtalk" });
+        showToast(messageResult?.status === "blocked" ? "발송 조건을 충족하지 못해 갱신 요청을 차단했어요." : messageResult?.duplicate ? "최근 24시간 안에 접수한 갱신 요청이 있어요." : "갱신 의사 확인 요청을 접수했어요.");
       } else if (variables.type === "send_overdue_notice") {
-        showToast("발송 제한을 확인하고 미납 안내를 접수했어요.");
-        track("overdue_notice_requested", { charge_id: variables.chargeId ?? "", channel: "sandbox_alimtalk" });
+        showToast(messageResult?.status === "blocked" ? "발송 조건을 충족하지 못해 미납 안내를 차단했어요." : messageResult?.duplicate ? "이번 청구월의 미납 안내가 이미 접수돼 있어요." : "발송 제한을 확인하고 미납 안내를 접수했어요.");
       }
     },
     onError: (error) => showToast(error instanceof Error ? error.message : "작업을 처리하지 못했습니다."),
@@ -89,7 +100,12 @@ export function DashboardView({ initial, buildings, userName }: { initial: Brief
       key="renewal"
       renewal={snapshot.briefing.renewal}
       pending={operation.isPending}
-      onStart={() => operation.mutate({ type: "start_renewal", leaseId: snapshot.briefing.renewal?.leaseId ?? "", idempotencyKey: crypto.randomUUID() })}
+      onStart={() => operation.mutate({ type: "start_renewal", leaseId: snapshot.briefing.renewal?.leaseId ?? "" })}
+      onEvidence={() => track("risk_evidence_opened", {
+        lease_id: snapshot.briefing.renewal?.leaseId ?? "",
+        risk_type: "lease_expiring",
+        source: "home_priority",
+      }, window.location.pathname, { experimentKey: value.experiment.key, variant: value.experiment.variant })}
     />
   ) : null;
   const agendaSection = (
@@ -98,7 +114,7 @@ export function DashboardView({ initial, buildings, userName }: { initial: Brief
       overdue={snapshot.briefing.overdue}
       maintenance={snapshot.briefing.maintenance}
       pending={operation.isPending}
-      onOverdue={() => operation.mutate({ type: "send_overdue_notice", chargeId: snapshot.briefing.overdue?.chargeId ?? "", idempotencyKey: crypto.randomUUID() })}
+      onOverdue={() => operation.mutate({ type: "send_overdue_notice", chargeId: snapshot.briefing.overdue?.chargeId ?? "" })}
     />
   );
   const briefings: ReactNode[] = value.experiment.variant === "risk-first" ? [renewalSection, agendaSection] : [agendaSection, renewalSection];
@@ -170,7 +186,7 @@ function Metric({ label, value, detail, tone }: { label: string; value: string; 
   return <article className={`metric-item metric-${tone}`}><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>;
 }
 
-function RenewalPriority({ renewal, pending, onStart }: { renewal: NonNullable<DashboardSnapshot["briefing"]["renewal"]>; pending: boolean; onStart: () => void }) {
+function RenewalPriority({ renewal, pending, onStart, onEvidence }: { renewal: NonNullable<DashboardSnapshot["briefing"]["renewal"]>; pending: boolean; onStart: () => void; onEvidence: () => void }) {
   return (
     <section className="surface-card priority-card" aria-labelledby="priority-heading">
       <div className="section-heading-row">
@@ -182,7 +198,9 @@ function RenewalPriority({ renewal, pending, onStart }: { renewal: NonNullable<D
         <div className="priority-copy">
           <h3>{renewal.unitName} · {renewal.tenantName}님</h3>
           <p>현재 월세는 {formatCompactWon(renewal.currentRent)}입니다. 계약이 끝나기 전에 갱신 의사를 확인하면 공실 위험을 줄일 수 있어요.</p>
-          <details className="evidence-details">
+          <details className="evidence-details" onToggle={(event) => {
+            if (event.currentTarget.open) onEvidence();
+          }}>
             <summary>제안 근거와 조건 확인 <ChevronDownIcon /></summary>
             <div className="evidence-grid">
               <span>현재 보증금<strong>{formatWon(renewal.currentDeposit)}</strong></span>

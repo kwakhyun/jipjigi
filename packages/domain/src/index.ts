@@ -10,12 +10,14 @@ export const OperationSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("send_overdue_notice"),
     chargeId: z.string().min(1),
-    idempotencyKey: z.string().uuid(),
   }),
   z.object({
     type: z.literal("start_renewal"),
     leaseId: z.string().min(1),
-    idempotencyKey: z.string().uuid(),
+  }),
+  z.object({
+    type: z.literal("retry_message"),
+    messageId: z.string().min(1),
   }),
   z.object({
     type: z.literal("update_maintenance"),
@@ -29,10 +31,11 @@ export type Operation = z.infer<typeof OperationSchema>;
 
 export type MessageDispatchOperationResult = {
   id: string;
-  status: "scheduled" | "accepted" | "blocked";
+  status: "scheduled" | "accepted" | "delivered" | "blocked" | "failed";
   guardrailReason: string | null;
   scheduledFor: string | null;
   duplicate: boolean;
+  retryCount: number;
 };
 
 export type OperationResult =

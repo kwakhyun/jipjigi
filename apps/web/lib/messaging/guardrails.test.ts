@@ -26,4 +26,11 @@ describe("message guardrails", () => {
   it("allows a daytime transactional message", () => {
     expect(evaluateGuardrails({ ...base, now: new Date("2026-08-29T06:00:00Z") })).toEqual({ outcome: "allowed" });
   });
+
+  it("blocks after two deliveries within seven days", () => {
+    expect(evaluateGuardrails({ ...base, recentDispatchCount: 2, now: new Date("2026-08-29T06:00:00Z") })).toEqual({
+      outcome: "blocked",
+      reason: "frequency_cap",
+    });
+  });
 });

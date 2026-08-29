@@ -43,7 +43,7 @@
 
 사용자가 실험군에 배정됐더라도 화면을 보지 않았다면 전환율의 분모에 포함하지 않아야 합니다. 사용자 ID를 안정적으로 해시해 실험안을 고정하고, 브리핑 UI가 렌더된 뒤 세션당 한 번만 노출 이벤트를 기록했습니다.
 
-노출 이벤트에는 실험 키와 변형을 저장하고 행동 이벤트와 메시지 처리 결과는 별도로 수집합니다. 실제 트래픽 분석에서는 배정 사용자 전체가 아니라 노출 사용자를 기준으로 전환과 발송 차단 같은 가드레일을 해석할 수 있습니다.
+노출 이벤트에는 실험 키, 실험안과 위험 유형을 저장합니다. 행동 이벤트는 서버에서 같은 실험 문맥과 함께 기록하고 메시지 요청, 전달 결과와 수신 해제를 분리해 수집합니다. 실제 트래픽 분석에서는 배정 사용자 전체가 아니라 노출 사용자를 기준으로 전환과 안전 지표를 해석할 수 있습니다.
 
 **구현 근거:** [결정적 실험 배정](packages/experiments/src/index.ts), [실제 노출 기록](apps/web/components/dashboard/dashboard-view.tsx), [이벤트 허용 목록](packages/analytics/src/index.ts), [배정 테스트](packages/experiments/src/index.test.ts), [실험 설계](docs/EXPERIMENTS.md)
 
@@ -57,9 +57,9 @@
 
 ### CRM 요청은 발송보다 운영 안전성을 먼저 확인합니다
 
-갱신 요청과 미납 안내는 곧바로 발송하지 않습니다. 서버에서 리소스 소유권, 연락 동의, 7일 빈도 제한과 야간 시간을 다시 확인하고, 멱등 키로 중복 요청을 막습니다. 외부 공급자는 동일한 상태 모델을 사용하는 샌드박스 어댑터로 분리했으며 웹훅은 HMAC 서명을 통과해야 상태를 변경합니다.
+갱신 요청과 미납 안내는 곧바로 발송하지 않습니다. 서버에서 리소스 소유권, 연락 동의와 야간 시간을 다시 확인하고 목적에 맞는 멱등 키를 만듭니다. 갱신 요청은 계약별 24시간 1회와 최근 7일 2회로 제한하고, 미납 안내는 계약과 청구월별 한 번만 접수합니다. 전달 실패는 같은 메시지에서 재접수하며 전달 결과, 채널 수신 해제와 갱신 응답은 HMAC 웹훅을 거쳐 타임라인과 관제에 반영합니다.
 
-**구현 근거:** [발송 가드레일](apps/web/lib/messaging/guardrails.ts), [메시지 서비스](apps/web/lib/messaging/service.ts), [웹훅 검증](apps/web/lib/messaging/webhook.ts), [가드레일 테스트](apps/web/lib/messaging/guardrails.test.ts), [웹훅 테스트](apps/web/lib/messaging/webhook.test.ts)
+**구현 근거:** [발송 가드레일](apps/web/lib/messaging/guardrails.ts), [메시지 서비스](apps/web/lib/messaging/service.ts), [전달 웹훅](apps/web/app/api/webhooks/messages/route.ts), [갱신 응답 웹훅](apps/web/app/api/webhooks/renewal-responses/route.ts), [CRM 통합 테스트](apps/web/app/api/webhooks/messages/route.test.ts)
 
 ## 기술 구성
 
@@ -69,7 +69,7 @@ Browser
       ├─ Server Components / Route Handlers
       ├─ TanStack Query / Jotai
       ├─ Domain, Analytics, Experiments, UI packages
-      └─ Drizzle ORM / SQLite
+      └─ better-sqlite3 / SQLite
           ├─ Local demo data
           └─ Sandbox notification provider
 ```
@@ -77,10 +77,10 @@ Browser
 | 영역 | 기술 |
 | --- | --- |
 | 프론트엔드 | Next.js 16, React 19, TypeScript, TanStack Query, Jotai |
-| 서버 | Next.js Route Handler, Server Component, Zod, Drizzle ORM |
+| 서버 | Next.js Route Handler, Server Action, Server Component, Zod |
 | 데이터 | SQLite, 선택형 Redis 요청 제한 |
 | 모노레포 | pnpm workspace, Turborepo |
-| 테스트 | Vitest, Testing Library, Playwright, axe-core |
+| 테스트 | Vitest, Testing Library, axe-core, 프로토타입 Playwright |
 | 운영 | GitHub Actions, Vercel, 구조화 로그, Core Web Vitals |
 
 웹 앱과 API를 한 Next.js 프로젝트에서 운영하는 모듈형 모놀리스 구조입니다. 초기 제품의 배포 속도와 타입 공유를 우선하되 도메인, 분석, 실험과 UI를 워크스페이스 패키지로 분리했습니다.
@@ -89,14 +89,14 @@ Browser
 
 | 대상 | 검증 결과 | 실행 근거 |
 | --- | --- | --- |
-| 프로덕션 웹앱 | 단위 및 통합 테스트 10개 파일, 21개 테스트 통과 | `pnpm --filter @jipjigi/web test` |
+| 프로덕션 웹앱 | 단위 및 통합 테스트 11개 파일, 26개 테스트 통과 | `pnpm --filter @jipjigi/web test` |
 | 타입과 빌드 | TypeScript 검사, Next.js 프로덕션 빌드 통과 | `pnpm typecheck`, `pnpm build` |
 | 성능 예산 | 주요 화면 gzip 번들 예산 통과 | `pnpm bundle:check` |
 | 접근성 | 주요 내비게이션, 수리와 알림 설정에 axe-core 검사 적용 | [컴포넌트 테스트](apps/web/components/maintenance/maintenance-view.test.tsx) |
 | 성능 관측 | 실제 브라우저 지표 수집과 최근 7일 p75 집계 | [수집 코드](apps/web/components/web-vitals-reporter.tsx), [집계 코드](apps/web/lib/data/repository.ts) |
 | 모바일 프로토타입 | Playwright 핵심 흐름 10개 통과 | `npm --prefix prototype run test:runtime` |
 | 정적 랜딩 | Node 테스트 4개 통과 | `npm --prefix prototype run test:sites` |
-| 지속적 통합 | 웹앱과 프로토타입을 독립 작업으로 검증 | [CI 워크플로](.github/workflows/ci.yml) |
+| 지속적 통합 | 웹앱과 프로토타입을 독립 작업으로 검증하고 Vercel도 같은 `pnpm verify`를 실행 | [CI 워크플로](.github/workflows/ci.yml), [Vercel 설정](vercel.json) |
 
 웹앱 검증은 다음 명령으로 재현합니다.
 
