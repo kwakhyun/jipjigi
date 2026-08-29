@@ -6,6 +6,8 @@ RentFlow는 1~20개 호실을 직접 관리하는 임대인이 오늘 처리할 
 
 **라이브 데모:** [rentflow-frontend-portfolio.vercel.app](https://rentflow-frontend-portfolio.vercel.app)
 
+`main` 브랜치의 변경 사항은 GitHub Actions 검증과 Vercel 프로덕션 배포로 이어집니다.
+
 ## 데모 계정
 
 | 역할 | 이메일 | 비밀번호 | 확인할 수 있는 경험 |
