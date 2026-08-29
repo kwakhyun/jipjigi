@@ -34,7 +34,7 @@ export default async function DistrictPage({ params }: { params: Promise<{ distr
     "@type": "Article",
     headline: `${data.name} 임대 관리 가이드`,
     description: data.description,
-    author: { "@type": "Organization", name: "렌트플로우" },
+    author: { "@type": "Organization", name: "집지기" },
   };
   return (
     <main className="seo-page">

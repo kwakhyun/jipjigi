@@ -9,8 +9,8 @@ const initialState: LoginState = {};
 type DemoMode = "owner" | "operator";
 
 const demoCredentials: Record<DemoMode, { email: string; password: string }> = {
-  owner: { email: "demo@rentflow.kr", password: "demo1234!" },
-  operator: { email: "growth@rentflow.kr", password: "demo1234!" },
+  owner: { email: "demo@jipjigi.kr", password: "demo1234!" },
+  operator: { email: "growth@jipjigi.kr", password: "demo1234!" },
 };
 
 export function LoginForm({ nextPath, demoEnabled, initialMode = "owner" }: { nextPath: string; demoEnabled: boolean; initialMode?: DemoMode }) {

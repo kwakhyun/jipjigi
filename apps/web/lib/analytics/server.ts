@@ -1,6 +1,6 @@
 import "server-only";
 
-import { ProductEventSchema, sanitizeProperties } from "@rentflow/analytics";
+import { ProductEventSchema, sanitizeProperties } from "@jipjigi/analytics";
 import { getDatabase } from "@/lib/db/client";
 
 export function recordProductEvent(input: unknown, userId: string | null) {

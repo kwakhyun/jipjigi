@@ -8,7 +8,7 @@ export function PageAnalytics() {
   const pathname = usePathname();
   useEffect(() => {
     try {
-      const key = "rentflow:v1:last-page-view";
+      const key = "jipjigi:v1:last-page-view";
       const previous = window.sessionStorage.getItem(key);
       const now = Date.now();
       if (previous) {

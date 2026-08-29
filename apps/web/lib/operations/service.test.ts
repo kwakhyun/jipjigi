@@ -10,8 +10,8 @@ let getDatabase: typeof import("@/lib/db/client").getDatabase;
 let runOperation: typeof import("./service").runOperation;
 
 beforeAll(async () => {
-  temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "rentflow-operation-test-"));
-  process.env.DB_FILE = path.join(temporaryDirectory, "rentflow.db");
+  temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "jipjigi-operation-test-"));
+  process.env.DB_FILE = path.join(temporaryDirectory, "jipjigi.db");
   process.env.ALLOW_DEMO_AUTH = "true";
   ({ getDatabase } = await import("@/lib/db/client"));
   ({ runOperation } = await import("./service"));

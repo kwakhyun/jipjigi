@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { CalendarIcon, CheckCircledIcon, InfoCircledIcon, PaperPlaneIcon } from "@radix-ui/react-icons";
-import { formatWon } from "@rentflow/domain/format";
+import { formatWon } from "@jipjigi/domain/format";
 import type { ContractRow } from "@/lib/data/repository";
 import { track } from "@/lib/analytics/client";
 import { daysUntilDate } from "@/lib/format/date";

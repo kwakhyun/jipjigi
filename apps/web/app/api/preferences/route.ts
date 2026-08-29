@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { NotificationPreferencesSchema } from "@rentflow/domain";
+import { NotificationPreferencesSchema } from "@jipjigi/domain";
 import { sessionFromRequest } from "@/lib/auth/dal";
 import { updatePreferences } from "@/lib/data/repository";
 import { assertSameOrigin } from "@/lib/security/request";

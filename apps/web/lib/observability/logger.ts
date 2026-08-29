@@ -8,7 +8,7 @@ function write(level: LogLevel, event: string, context: LogContext = {}) {
     level,
     event,
     timestamp: new Date().toISOString(),
-    service: "rentflow-web",
+    service: "jipjigi-web",
     ...Object.fromEntries(Object.entries(context).filter(([, value]) => value !== undefined)),
   });
   if (level === "error") console.error(payload);

@@ -23,7 +23,6 @@ import {
   PaperPlaneIcon,
   PersonIcon,
   ReloadIcon,
-  RowsIcon,
 } from "@radix-ui/react-icons";
 import { BottomSheet, MobileScroll } from "./mobile";
 
@@ -56,9 +55,9 @@ type AnalyticsEvent = {
   properties: Record<string, string | number | boolean>;
 };
 
-const EVENT_STORAGE_KEY = "rentflow:analytics-events:v1";
-const VARIANT_STORAGE_KEY = "rentflow:briefing-variant:v1";
-const EXPOSURE_SESSION_KEY = "rentflow:briefing-exposure:v1";
+const EVENT_STORAGE_KEY = "jipjigi:analytics-events:v1";
+const VARIANT_STORAGE_KEY = "jipjigi:briefing-variant:v1";
+const EXPOSURE_SESSION_KEY = "jipjigi:briefing-exposure:v1";
 const DEMO_CONTRACT_END_DATE = "2026-09-27";
 
 const navItems: Array<{
@@ -76,6 +75,19 @@ const buildings = [
   { name: "성수 리버하임", units: 19 },
   { name: "망원 포레", units: 8 },
 ];
+
+function BrandLockup({ small = false }: { small?: boolean }) {
+  return (
+    <div className={`brand-lockup ${small ? "brand-lockup-small" : "brand-lockup-hero"}`}>
+      <svg className="brand-lockup-mark" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="1" y="1" width="30" height="30" rx="10" fill="currentColor" />
+        <path d="m8.5 15.2 7.5-6.1 7.5 6.1M10.8 14.2v9h10.4v-9" fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.1" />
+        <path d="m13.1 18.3 2 2 4-4.2" fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+      </svg>
+      <span>집지기</span>
+    </div>
+  );
+}
 
 function initialVariant(): ExperimentVariant {
   const queryVariant = new URLSearchParams(window.location.search).get("variant");
@@ -163,9 +175,9 @@ export default function Prototype() {
   }, [track, variant]);
 
   useEffect(() => {
-    document.documentElement.dataset.rentflowStatus = activeTab === "home" ? "dark" : "light";
+    document.documentElement.dataset.jipjigiStatus = activeTab === "home" ? "dark" : "light";
     return () => {
-      delete document.documentElement.dataset.rentflowStatus;
+      delete document.documentElement.dataset.jipjigiStatus;
     };
   }, [activeTab]);
 
@@ -255,24 +267,17 @@ export default function Prototype() {
   }, [maintenanceState, openSheet, reminderState, renewalState, variant]);
 
   return (
-    <div className="rentflow-app">
+    <div className="jipjigi-app">
       <MobileScroll key={activeTab} className="app-screen">
-        <main className={`screen-content screen-${activeTab}`} aria-label="렌트플로우 임대 관리 앱">
+        <main className={`screen-content screen-${activeTab}`} aria-label="집지기 임대 관리 앱">
           {activeTab === "home" ? (
             <>
               <section className="home-hero" aria-labelledby="briefing-title">
                 <div className="hero-topbar">
-                  <div className="brand-lockup brand-lockup-hero">
-                    <img
-                      src="/assets/rentflow/brand-lockup.png"
-                      width="118"
-                      height="38"
-                      alt="렌트플로우"
-                    />
-                  </div>
+                  <BrandLockup />
                   <div className="hero-actions">
                     <button
-                      className="icon-button icon-button-dark rf-focus"
+                      className="icon-button icon-button-dark jj-focus"
                       type="button"
                       aria-label="알림 보기"
                       onClick={() => openSheet("notifications", "hero")}
@@ -281,7 +286,7 @@ export default function Prototype() {
                       <span className="notification-dot" aria-hidden="true" />
                     </button>
                     <button
-                      className="icon-button icon-button-dark rf-focus"
+                      className="icon-button icon-button-dark jj-focus"
                       type="button"
                       aria-label="전체 메뉴 보기"
                       onClick={() => selectTab("all")}
@@ -293,7 +298,7 @@ export default function Prototype() {
 
                 <p className="hero-date">{formatCurrentDate()}</p>
                 <button
-                  className="building-selector rf-focus"
+                  className="building-selector jj-focus"
                   type="button"
                   aria-label={`현재 건물 ${building.name}. 건물 바꾸기`}
                   onClick={() => openSheet("building", "hero")}
@@ -318,7 +323,7 @@ export default function Prototype() {
               <div className="home-main">
                 {homeSections}
                 <button
-                  className="collection-summary rf-focus"
+                  className="collection-summary jj-focus"
                   type="button"
                   onClick={() => selectTab("ledger")}
                   aria-label="8월 임대료 수납 상세 보기"
@@ -353,7 +358,7 @@ export default function Prototype() {
           return (
             <button
               key={item.id}
-              className="nav-item rf-focus"
+              className="nav-item jj-focus"
               type="button"
               data-selected={selected ? "true" : "false"}
               aria-current={selected ? "page" : undefined}
@@ -427,18 +432,18 @@ function PrioritySection({
       <h2 id="priority-title">먼저 확인할 일</h2>
       <div className="risk-row">
         <span className="risk-icon" aria-hidden="true">
-          <img src="/assets/rentflow/priority-renewal-icon.png" width="88" height="88" alt="" />
+          <img src="/assets/jipjigi/priority-renewal-icon.png" width="88" height="88" alt="" />
         </span>
         <div className="risk-copy">
           <h3>501호 계약 만료까지 <strong>{contractDaysLeft()}일</strong> 남았어요</h3>
           <span className="risk-badge">{renewalState === "sent" ? "응답 대기" : "확인 필요"}</span>
           <p>{renewalState === "sent" ? "임차인의 답변을 기다리고 있어요" : "갱신 의사를 아직 확인하지 않았어요"}</p>
-          <button className="text-action rf-focus" type="button" onClick={onEvidence}>
+          <button className="text-action jj-focus" type="button" onClick={onEvidence}>
             먼저 확인하는 이유 <ChevronRightIcon width={16} height={16} />
           </button>
         </div>
       </div>
-      <button className="primary-action rf-focus" type="button" onClick={onRenewal}>
+      <button className="primary-action jj-focus" type="button" onClick={onRenewal}>
         {renewalState === "sent" ? <CheckCircledIcon width={20} height={20} /> : null}
         {renewalState === "sent" ? "요청 상태 보기" : "갱신 의사 확인하기"}
       </button>
@@ -461,7 +466,7 @@ function AgendaSection({
     <section className="agenda-section" aria-labelledby="agenda-title">
       <h2 id="agenda-title">오늘 일정</h2>
       <div className="timeline">
-        <button className="timeline-row rf-focus" type="button" onClick={onMaintenance}>
+        <button className="timeline-row jj-focus" type="button" onClick={onMaintenance}>
           <span className="timeline-time timeline-time-alert">오전<strong>9:30</strong></span>
           <span className="timeline-marker timeline-marker-alert" aria-hidden="true" />
           <span className="timeline-label">
@@ -470,7 +475,7 @@ function AgendaSection({
           </span>
           <ChevronRightIcon width={18} height={18} aria-hidden="true" />
         </button>
-        <button className="timeline-row rf-focus" type="button" onClick={onReminder}>
+        <button className="timeline-row jj-focus" type="button" onClick={onReminder}>
           <span className="timeline-time timeline-time-safe">오후<strong>6:00</strong></span>
           <span className="timeline-marker timeline-marker-safe" aria-hidden="true" />
           <span className="timeline-label">
@@ -503,7 +508,7 @@ function LedgerScreen() {
         <div className="section-title-row"><h2 id="ledger-title">호실별 현황</h2><span>최근 업데이트 18:02</span></div>
         <div className="ledger-list">
           {rows.map((row) => (
-            <button className="ledger-row rf-focus" type="button" key={row.unit}>
+            <button className="ledger-row jj-focus" type="button" key={row.unit}>
               <span><strong>{row.unit}</strong><small>{row.amount}</small></span>
               <em data-tone={row.tone}>{row.status}</em>
               <ChevronRightIcon width={18} height={18} />
@@ -521,12 +526,12 @@ function NewsScreen({ onNotifications }: { onNotifications: () => void }) {
       <SecondaryHeader eyebrow="임대 운영 알림" title="소식" />
       <div className="secondary-section">
         <h2 id="news-title">새 소식 2건</h2>
-        <button className="news-card rf-focus" type="button" onClick={onNotifications}>
+        <button className="news-card jj-focus" type="button" onClick={onNotifications}>
           <span className="news-icon"><BellIcon width={20} height={20} /></span>
           <span><strong>501호 계약 만료 알림</strong><small>갱신 의사 확인이 필요한 시점이에요</small></span>
           <ChevronRightIcon width={18} height={18} />
         </button>
-        <button className="news-card rf-focus" type="button">
+        <button className="news-card jj-focus" type="button">
           <span className="news-icon news-icon-green"><CheckCircledIcon width={20} height={20} /></span>
           <span><strong>8월 수납률 89%</strong><small>지난달 같은 날보다 6%p 높아요</small></span>
           <ChevronRightIcon width={18} height={18} />
@@ -558,10 +563,10 @@ function AllScreen({
       <SecondaryHeader eyebrow="설정과 실험" title="전체" />
       <div className="secondary-section">
         <h2 id="settings-title">관리 설정</h2>
-        <button className="settings-row rf-focus" type="button" onClick={onBuilding}>
+        <button className="settings-row jj-focus" type="button" onClick={onBuilding}>
           <HomeIcon width={20} height={20} /><span><strong>관리 건물</strong><small>성수 리버하임 외 1개</small></span><ChevronRightIcon width={18} height={18} />
         </button>
-        <button className="settings-row rf-focus" type="button">
+        <button className="settings-row jj-focus" type="button">
           <BellIcon width={20} height={20} /><span><strong>알림 설정</strong><small>수신 동의 확인, 야간 발송 제한 사용</small></span><ChevronRightIcon width={18} height={18} />
         </button>
       </div>
@@ -572,8 +577,8 @@ function AllScreen({
         </div>
         <p>홈 브리핑의 정보 순서가 행동 완료율에 미치는 영향을 확인합니다.</p>
         <div className="variant-control" role="group" aria-label="홈 브리핑 실험안">
-          <button className="rf-focus" type="button" data-selected={variant === "risk-first"} onClick={() => onVariantChange("risk-first")}>위험 우선</button>
-          <button className="rf-focus" type="button" data-selected={variant === "agenda-first"} onClick={() => onVariantChange("agenda-first")}>일정 우선</button>
+          <button className="jj-focus" type="button" data-selected={variant === "risk-first"} onClick={() => onVariantChange("risk-first")}>위험 우선</button>
+          <button className="jj-focus" type="button" data-selected={variant === "agenda-first"} onClick={() => onVariantChange("agenda-first")}>일정 우선</button>
         </div>
         <small>실제 서비스에서는 사용자별로 같은 실험안을 유지하고 서버에 노출 기록을 남깁니다.</small>
       </div> : null}
@@ -584,7 +589,7 @@ function AllScreen({
 function SecondaryHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
     <header className="secondary-header">
-      <div className="brand-lockup brand-lockup-small"><RowsIcon width={22} height={22} /><span>렌트플로우</span></div>
+      <BrandLockup small />
       <p>{eyebrow}</p>
       <h1>{title}</h1>
     </header>
@@ -607,7 +612,7 @@ function RenewalSheet({ state, onSend, onDone }: { state: SendState; onSend: () 
         <p>안녕하세요. 501호 계약 만료일이 다가와 갱신 의사를 여쭙습니다. 편하실 때 답변해 주세요.</p>
       </div>
       <div className="guardrail-inline"><CheckIcon width={16} height={16} /><span>수신 동의와 야간 발송 제한을 확인했어요</span></div>
-      <button className="sheet-primary rf-focus" type="button" disabled={state === "sending"} onClick={onSend}>
+      <button className="sheet-primary jj-focus" type="button" disabled={state === "sending"} onClick={onSend}>
         {state === "sending" ? <ReloadIcon className="spin-icon" width={18} height={18} /> : <PaperPlaneIcon width={18} height={18} />}
         {state === "sending" ? "보내는 중" : "확인 요청 보내기"}
       </button>
@@ -631,7 +636,7 @@ function ReminderSheet({ state, onSend, onDone }: { state: SendState; onSend: ()
         <div><dt>안내 횟수</dt><dd>이번 달 0회</dd></div>
       </dl>
       <div className="guardrail-inline"><CheckIcon width={16} height={16} /><span>수신을 거부한 임차인은 제외하고 오후 9시 이후에는 예약 발송해요</span></div>
-      <button className="sheet-primary rf-focus" type="button" disabled={state === "sending"} onClick={onSend}>
+      <button className="sheet-primary jj-focus" type="button" disabled={state === "sending"} onClick={onSend}>
         {state === "sending" ? <ReloadIcon className="spin-icon" width={18} height={18} /> : <PaperPlaneIcon width={18} height={18} />}
         {state === "sending" ? "보내는 중" : "정중한 안내 보내기"}
       </button>
@@ -654,7 +659,7 @@ function MaintenanceSheet({ requested, onRequest }: { requested: boolean; onRequ
     <div className="sheet-stack">
       <div className="maintenance-note"><span>임차인 메모</span><p>세면대 아래로 물이 계속 떨어져요. 수도 밸브는 잠가두었습니다.</p></div>
       <dl className="detail-list"><div><dt>접수 시각</dt><dd>오늘 오전 9:12</dd></div><div><dt>권장 대응</dt><dd>24시간 이내 점검</dd></div></dl>
-      <button className="sheet-primary rf-focus" type="button" disabled={requested} onClick={onRequest}>
+      <button className="sheet-primary jj-focus" type="button" disabled={requested} onClick={onRequest}>
         {requested ? <CheckCircledIcon width={18} height={18} /> : <CalendarIcon width={18} height={18} />}
         {requested ? "수리 요청 접수 완료" : "수리 업체 연결 요청"}
       </button>
@@ -666,7 +671,7 @@ function BuildingSheet({ selected, onSelect }: { selected: string; onSelect: (bu
   return (
     <div className="building-list">
       {buildings.map((item) => (
-        <button className="building-option rf-focus" type="button" key={item.name} onClick={() => onSelect(item)}>
+        <button className="building-option jj-focus" type="button" key={item.name} onClick={() => onSelect(item)}>
           <span className="building-option-icon"><HomeIcon width={19} height={19} /></span>
           <span><strong>{item.name}</strong><small>{item.units}개 호실 관리 중</small></span>
           {selected === item.name ? <CheckCircledIcon width={20} height={20} /> : <ChevronRightIcon width={18} height={18} />}
@@ -691,7 +696,7 @@ function SuccessState({ title, description, onDone }: { title: string; descripti
       <CheckCircledIcon width={42} height={42} />
       <strong>{title}</strong>
       <p>{description}</p>
-      <button className="sheet-primary rf-focus" type="button" onClick={onDone}>완료</button>
+      <button className="sheet-primary jj-focus" type="button" onClick={onDone}>완료</button>
     </div>
   );
 }
@@ -704,7 +709,7 @@ function sheetTitle(sheet: SheetId | null) {
     case "notifications": return "알림";
     case "reminder": return "203호 미납 안내";
     case "renewal": return "501호 갱신 의사 확인";
-    default: return "렌트플로우";
+    default: return "집지기";
   }
 }
 

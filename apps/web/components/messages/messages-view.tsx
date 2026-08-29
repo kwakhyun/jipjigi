@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { CheckCircledIcon, ClockIcon, InfoCircledIcon, LockClosedIcon, PaperPlaneIcon } from "@radix-ui/react-icons";
-import type { MessageDispatchOperationResult } from "@rentflow/domain";
+import type { MessageDispatchOperationResult } from "@jipjigi/domain";
 import type { ContractRow, LedgerRow, MessageRow } from "@/lib/data/repository";
 import { track } from "@/lib/analytics/client";
 import { useTransientMessage } from "@/lib/hooks/use-transient-message";
@@ -64,7 +64,7 @@ export function MessagesView({ initialMessages, contracts, charges }: { initialM
           </select>
           {selected ? (
             <div className="message-preview">
-              <span className="message-preview-channel">렌트플로우 알림</span>
+              <span className="message-preview-channel">집지기 알림</span>
               <strong>{selected.recipient}님께 보낼 내용</strong>
               <p>{selected.template}</p>
               <small>수신 거부는 앱 설정에서 변경할 수 있습니다.</small>

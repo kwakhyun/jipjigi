@@ -17,7 +17,7 @@ COPY packages/ui/package.json packages/ui/package.json
 RUN pnpm install --frozen-lockfile
 COPY apps apps
 COPY packages packages
-RUN pnpm --filter @rentflow/web build
+RUN pnpm --filter @jipjigi/web build
 
 FROM base AS runner
 WORKDIR /app
@@ -26,7 +26,7 @@ ENV NODE_ENV=production
 ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
-ENV DB_FILE=/data/rentflow.db
+ENV DB_FILE=/data/jipjigi.db
 RUN apk add --no-cache libc6-compat wget && mkdir -p /data && chown node:node /data
 COPY --from=builder --chown=node:node /repo/apps/web/.next/standalone ./
 COPY --from=builder --chown=node:node /repo/apps/web/.next/static ./apps/web/.next/static

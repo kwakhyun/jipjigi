@@ -7,7 +7,7 @@
 ## 2. 목표 저장소 구조
 
 ```text
-rentflow/
+jipjigi/
 ├── apps/
 │   ├── web/                         # Next.js App Router
 │   │   ├── app/
@@ -131,7 +131,7 @@ Web / Mobile
 
 - 웹 화면을 그대로 WebView에 넣는 방식은 단기 검증에만 사용합니다.
 - 장기적으로 브리핑, 장부, 알림은 네이티브 컴포넌트로 만들고 도메인 규칙, API 타입, 이벤트 이름을 공유합니다.
-- 푸시 딥링크는 `rentflow://briefing?riskId=...` 형태로 브리핑의 정확한 상태를 엽니다.
+- 푸시 딥링크는 `jipjigi://briefing?riskId=...` 형태로 브리핑의 정확한 상태를 엽니다.
 - 광고 SDK는 별도 어댑터로 감싸 빈도 제한, 동의, eCPM, 노출 실패를 공통 이벤트로 남깁니다.
 
 ## 11. AWS Elastic Beanstalk 배포

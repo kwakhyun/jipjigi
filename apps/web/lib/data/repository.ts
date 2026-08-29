@@ -1,8 +1,8 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import type { DashboardSnapshot, NotificationPreferences } from "@rentflow/domain";
-import { assignVariant, briefingPriorityExperiment, type BriefingVariant } from "@rentflow/experiments";
+import type { DashboardSnapshot, NotificationPreferences } from "@jipjigi/domain";
+import { assignVariant, briefingPriorityExperiment, type BriefingVariant } from "@jipjigi/experiments";
 import { getDatabase } from "@/lib/db/client";
 import { CORE_WEB_VITAL_TARGETS, type CoreWebVitalName } from "@/lib/performance/schema";
 

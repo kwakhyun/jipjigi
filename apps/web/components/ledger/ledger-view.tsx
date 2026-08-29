@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { CheckCircledIcon, ExclamationTriangleIcon, PaperPlaneIcon } from "@radix-ui/react-icons";
-import { formatWon } from "@rentflow/domain/format";
+import { formatWon } from "@jipjigi/domain/format";
 import type { LedgerRow } from "@/lib/data/repository";
 import { track } from "@/lib/analytics/client";
 import { useTransientMessage } from "@/lib/hooks/use-transient-message";

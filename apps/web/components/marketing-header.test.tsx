@@ -12,7 +12,7 @@ describe("MarketingHeader", () => {
     render(<MarketingHeader />);
 
     expect(screen.getByRole("navigation", { name: "소개 메뉴" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "렌트플로우 홈" }).getAttribute("href")).toBe("/");
+    expect(screen.getByRole("link", { name: "집지기 홈" }).getAttribute("href")).toBe("/");
     expect(screen.getByRole("link", { name: "운영 데모 열기" }).getAttribute("href")).toBe("/login?mode=owner");
   });
 

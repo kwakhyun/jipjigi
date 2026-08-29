@@ -6,7 +6,7 @@ import {
   type NotificationPreferences,
   type Operation,
   type OperationResult,
-} from "@rentflow/domain";
+} from "@jipjigi/domain";
 import { requireOwner } from "@/lib/auth/dal";
 import { updatePreferences } from "@/lib/data/repository";
 import { logger } from "@/lib/observability/logger";

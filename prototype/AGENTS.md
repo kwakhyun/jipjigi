@@ -2,7 +2,7 @@
 
 ## Product-specific design decision
 
-- The selected target is the combined Rentflow mock saved at `design-reference.png`.
+- The selected target is the combined 집지기 mock saved at `design-reference.png`.
 - Preserve direction 3's deep aubergine night-building header, curved off-white content sheet, lavender actions, coral risk accent, and compact bottom navigation.
 - The home experience must also retain direction 1's rent collection/reminder action and direction 2's daily agenda timeline. Keep risk prevention as the primary hierarchy; collection and agenda are supporting workflows.
 - The product is an independent portfolio concept. Do not reuse ZariTalk branding, copy, or logos.

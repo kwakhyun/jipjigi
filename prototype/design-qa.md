@@ -1,4 +1,4 @@
-# 렌트플로우 디자인 QA
+# 집지기 디자인 QA
 
 ## 비교 대상
 
@@ -32,7 +32,7 @@
 - Fonts and typography: Apple SD Gothic Neo 계열 폴백, 700~850 굵기, 제목과 숫자의 위계, 작은 상태 문구의 줄 높이를 확인했다. 핵심 문구의 줄바꿈과 잘림은 없다.
 - Spacing and layout rhythm: 히어로 306px, 본문 좌우 24px, CTA와 일정, 수납 카드, 하단 탐색의 수직 리듬을 맞췄다. 첫 화면에서 핵심 기능이 모두 보인다.
 - Colors and visual tokens: 야간 남보라, 라벤더 CTA, 코랄 위험, 녹색 안정/수납 토큰이 시안의 의미 체계와 대응한다. 텍스트 대비도 유지된다.
-- Image quality and asset fidelity: 별도 생성한 1024 × 657 야간 건물 이미지를 90KB JPEG로 최적화하고 목표 배율에 맞춰 배치했다. 로고와 위험 아이콘은 시각 원본에서 추출한 실제 래스터 자산을 사용했으며 로고 배경은 투명 처리했다.
+- Image quality and asset fidelity: 별도 생성한 1024 × 657 야간 건물 이미지를 90KB JPEG로 최적화하고 목표 배율에 맞춰 배치했다. 위험 아이콘은 시각 원본의 래스터 자산을 유지하고, 집지기 워드마크는 작은 화면에서도 선명하도록 인라인 벡터로 교체했다.
 - Copy and content: 건물명, 계약 만료 30일, 오늘 일정 2건, 17/19건 수납 등 앱 고유 문구와 수치가 목표 시안과 일치한다.
 
 ## Full-view comparison evidence
@@ -51,7 +51,7 @@
    - Fixes: 히어로를 306px로 압축하고 원본 기반 로고/위험 자산을 적용했다. 첫 화면 밀도를 줄여 수납 카드를 노출했다.
 2. `comparison-home-v2.png` → `comparison-home-v3.png`
    - Earlier P2 findings: iOS 안전 영역 변수가 앱 루트에 전달되지 않아 탭 바 높이가 55px로 축소됐다. 타임라인 마커가 목표보다 오른쪽에 있었다.
-   - Fixes: `--rf-safe-bottom` 폴백을 추가해 탭 바를 50px + 34px로 구성했다. 타임라인 열과 구분선 시작점을 재정렬했다.
+   - Fixes: `--jj-safe-bottom` 폴백을 추가해 탭 바를 50px + 34px로 구성했다. 타임라인 열과 구분선 시작점을 재정렬했다.
    - Post-fix evidence: `comparison-home-v3.png`에서 메뉴 라벨과 홈 인디케이터가 분리되고 일정 정렬이 목표와 일치했다.
 3. `comparison-home-v3.png` → `comparison-home-v4.png`
    - Earlier P2 finding: 히어로 건물 이미지가 목표보다 약 25% 크게 보여 상단 영역의 균형이 달랐다.
@@ -88,3 +88,10 @@
 - 실제 제품 단계에서는 Pretendard 가변 폰트를 자체 호스팅해 기기별 한글 렌더링 편차를 더 줄일 수 있다.
 
 final result: passed
+
+## 집지기 브랜드 변경 후 보강
+
+- 집 모양과 확인 표시를 결합한 벡터 심벌과 한글 워드마크를 홈과 보조 화면에 공통 적용했다.
+- 저장소 키, CSS 토큰, 앱 접근성 이름을 `jipjigi`와 `집지기`로 변경했다.
+- 브랜드 변경 뒤 TypeScript 빌드, 모바일 런타임 10개 시나리오와 브라우저 오류 검사를 다시 통과했다.
+- 기존 비교 이미지는 최초 시안과 구현 간 의사결정 이력을 보존하기 위한 감사 자료다.

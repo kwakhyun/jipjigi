@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Operation, OperationResult } from "@rentflow/domain";
+import type { Operation, OperationResult } from "@jipjigi/domain";
 import { getDatabase } from "@/lib/db/client";
 import { writeAudit } from "@/lib/data/repository";
 import { dispatchTransactionalMessage } from "@/lib/messaging/service";

@@ -17,9 +17,9 @@ import {
   PaperPlaneIcon,
   ReloadIcon,
 } from "@radix-ui/react-icons";
-import type { DashboardSnapshot } from "@rentflow/domain";
-import { formatCompactWon, formatWon } from "@rentflow/domain/format";
-import type { BriefingVariant } from "@rentflow/experiments";
+import type { DashboardSnapshot } from "@jipjigi/domain";
+import { formatCompactWon, formatWon } from "@jipjigi/domain/format";
+import type { BriefingVariant } from "@jipjigi/experiments";
 import { useTransientMessage } from "@/lib/hooks/use-transient-message";
 import { submitOperation } from "@/lib/operations/client";
 import { selectedBuildingIdAtom } from "@/lib/state/workspace";
@@ -52,7 +52,7 @@ export function DashboardView({ initial, buildings, userName }: { initial: Brief
   const value = briefing.data ?? initial;
 
   useEffect(() => {
-    const exposureKey = `rentflow:exposure:${value.experiment.key}:${value.experiment.variant}`;
+    const exposureKey = `jipjigi:exposure:${value.experiment.key}:${value.experiment.variant}`;
     try {
       if (window.sessionStorage.getItem(exposureKey)) return;
       window.sessionStorage.setItem(exposureKey, "1");
@@ -178,7 +178,7 @@ function RenewalPriority({ renewal, pending, onStart }: { renewal: NonNullable<D
         <span className="risk-pill">D-{renewal.daysLeft}</span>
       </div>
       <div className="priority-content">
-        <Image className="priority-asset" src="/assets/rentflow/priority-renewal-icon.png" width={104} height={104} alt="계약 갱신 일정 알림" />
+        <Image className="priority-asset" src="/assets/jipjigi/priority-renewal-icon.png" width={104} height={104} alt="계약 갱신 일정 알림" />
         <div className="priority-copy">
           <h3>{renewal.unitName} · {renewal.tenantName}님</h3>
           <p>현재 월세는 {formatCompactWon(renewal.currentRent)}입니다. 계약이 끝나기 전에 갱신 의사를 확인하면 공실 위험을 줄일 수 있어요.</p>

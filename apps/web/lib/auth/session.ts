@@ -20,7 +20,7 @@ function authSecret() {
   if (process.env.NODE_ENV === "production") {
     throw new Error("AUTH_SECRET must be at least 32 characters in production");
   }
-  return new TextEncoder().encode("rentflow-local-development-secret-2026");
+  return new TextEncoder().encode("jipjigi-local-development-secret-2026");
 }
 
 export async function createSessionToken(payload: SessionPayload) {

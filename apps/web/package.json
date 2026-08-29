@@ -1,5 +1,5 @@
 {
-  "name": "@rentflow/web",
+  "name": "@jipjigi/web",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -13,10 +13,10 @@
   },
   "dependencies": {
     "@radix-ui/react-icons": "1.3.2",
-    "@rentflow/analytics": "workspace:*",
-    "@rentflow/domain": "workspace:*",
-    "@rentflow/experiments": "workspace:*",
-    "@rentflow/ui": "workspace:*",
+    "@jipjigi/analytics": "workspace:*",
+    "@jipjigi/domain": "workspace:*",
+    "@jipjigi/experiments": "workspace:*",
+    "@jipjigi/ui": "workspace:*",
     "@tanstack/react-query": "5.102.8",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.3",

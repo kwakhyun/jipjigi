@@ -4,13 +4,13 @@ import Database from "better-sqlite3";
 import bcrypt from "bcryptjs";
 
 type GlobalDatabase = typeof globalThis & {
-  __rentflowDatabase?: Database.Database;
+  __jipjigiDatabase?: Database.Database;
 };
 
 const globalDatabase = globalThis as GlobalDatabase;
 
 function databaseFile() {
-  const configured = process.env.DB_FILE ?? "../../.data/rentflow.db";
+  const configured = process.env.DB_FILE ?? "../../.data/jipjigi.db";
   return path.resolve(/* turbopackIgnore: true */ process.cwd(), configured);
 }
 
@@ -24,7 +24,7 @@ function seedDemoOperator(db: Database.Database) {
     db.prepare(
       `INSERT INTO users (id, email, name, password_hash, role, created_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("operator-1", "growth@rentflow.kr", "렌트플로우 운영자", bcrypt.hashSync("demo1234!", 10), "operator", now);
+    ).run("operator-1", "growth@jipjigi.kr", "집지기 운영자", bcrypt.hashSync("demo1234!", 10), "operator", now);
     db.prepare(
       `INSERT INTO notification_preferences (
         user_id, rent_reminder, renewal_reminder, maintenance_updates, marketing,
@@ -49,7 +49,7 @@ function seedDatabase(db: Database.Database) {
     db.prepare(
       `INSERT INTO users (id, email, name, password_hash, role, created_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("owner-1", "demo@rentflow.kr", "김서준", bcrypt.hashSync("demo1234!", 10), "owner", now);
+    ).run("owner-1", "demo@jipjigi.kr", "김서준", bcrypt.hashSync("demo1234!", 10), "owner", now);
 
     db.prepare(
       `INSERT INTO buildings (id, owner_id, name, address, total_units, created_at)
@@ -345,11 +345,11 @@ function initialize(db: Database.Database) {
 }
 
 export function getDatabase() {
-  if (globalDatabase.__rentflowDatabase) return globalDatabase.__rentflowDatabase;
+  if (globalDatabase.__jipjigiDatabase) return globalDatabase.__jipjigiDatabase;
   const file = databaseFile();
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const db = new Database(file);
   initialize(db);
-  globalDatabase.__rentflowDatabase = db;
+  globalDatabase.__jipjigiDatabase = db;
   return db;
 }

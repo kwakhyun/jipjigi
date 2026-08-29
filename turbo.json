@@ -7,7 +7,7 @@
       "outputs": [],
       "env": ["AUTH_SECRET", "DB_FILE", "MESSAGE_WEBHOOK_SECRET", "NEXT_PUBLIC_APP_URL", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"]
     },
-    "@rentflow/web#build": {
+    "@jipjigi/web#build": {
       "outputs": [".next/**", "!.next/cache/**"]
     },
     "dev": {

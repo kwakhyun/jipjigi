@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   devIndicators: false,
   serverExternalPackages: ["better-sqlite3"],
-  transpilePackages: ["@rentflow/analytics", "@rentflow/domain", "@rentflow/experiments", "@rentflow/ui"],
+  transpilePackages: ["@jipjigi/analytics", "@jipjigi/domain", "@jipjigi/experiments", "@jipjigi/ui"],
   experimental: {
     optimizePackageImports: ["@radix-ui/react-icons"],
   },

@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode, ComponentType } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -14,7 +13,8 @@ import {
   HomeIcon,
   MixerHorizontalIcon,
 } from "@radix-ui/react-icons";
-import { cx } from "@rentflow/ui";
+import { cx } from "@jipjigi/ui";
+import { BrandLockup } from "./brand-lockup";
 import { PageAnalytics } from "./page-analytics";
 
 type NavItem = {
@@ -55,8 +55,8 @@ export function AppShell({ children, user }: { children: ReactNode; user: { name
       <a className="skip-link" href="#main-content">본문으로 건너뛰기</a>
       <PageAnalytics />
       <aside className="side-navigation" aria-label="주요 메뉴">
-        <Link className="side-brand" href={homeHref} aria-label="렌트플로우 홈">
-          <Image src="/assets/rentflow/brand-lockup.png" width={118} height={38} alt="렌트플로우" priority />
+        <Link className="side-brand" href={homeHref} aria-label="집지기 홈">
+          <BrandLockup />
         </Link>
         <nav className="side-nav-list">
           {mainNavigation.map((item) => (
@@ -73,8 +73,8 @@ export function AppShell({ children, user }: { children: ReactNode; user: { name
       </aside>
       <div className="workspace-main-column">
         <header className="mobile-app-header">
-          <Link href={homeHref} aria-label="렌트플로우 홈">
-            <Image src="/assets/rentflow/brand-lockup-on-dark.png" width={112} height={36} alt="렌트플로우" priority />
+          <Link href={homeHref} aria-label="집지기 홈">
+            <BrandLockup tone="dark" />
           </Link>
           {user.role === "owner" ? (
             <Link className="header-icon-button" href="/app/messages" aria-label="메시지 알림 보기">

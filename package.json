@@ -1,5 +1,5 @@
 {
-  "name": "rentflow",
+  "name": "jipjigi",
   "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@10.29.2",
@@ -7,13 +7,13 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "turbo dev --filter=@rentflow/web",
+    "dev": "turbo dev --filter=@jipjigi/web",
     "build": "turbo build",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
-    "bundle:check": "pnpm --filter @rentflow/web bundle:check",
+    "bundle:check": "pnpm --filter @jipjigi/web bundle:check",
     "verify": "pnpm typecheck && pnpm test && pnpm build && pnpm bundle:check",
-    "db:reset": "pnpm --filter @rentflow/web db:reset"
+    "db:reset": "pnpm --filter @jipjigi/web db:reset"
   },
   "devDependencies": {
     "turbo": "2.10.12",

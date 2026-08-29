@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
-import { OperationSchema } from "@rentflow/domain";
+import { OperationSchema } from "@jipjigi/domain";
 import { sessionFromRequest } from "@/lib/auth/dal";
 import { runOperation, OperationError } from "@/lib/operations/service";
 import { assertSameOrigin, rateLimit } from "@/lib/security/request";

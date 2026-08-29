@@ -9,14 +9,14 @@ pnpm db:reset
 pnpm dev
 ```
 
-기본 주소는 `http://localhost:3108`이며 데모 계정은 `demo@rentflow.kr / demo1234!`입니다.
+기본 주소는 `http://localhost:3108`이며 데모 계정은 `demo@jipjigi.kr / demo1234!`입니다.
 
 ## 필수 환경 변수
 
 | 변수 | 목적 |
 |---|---|
 | `AUTH_SECRET` | 세션 JWT 서명. 프로덕션에서 32자 이상 필수 |
-| `DB_FILE` | SQLite 파일 경로. 컨테이너 기본값 `/data/rentflow.db` |
+| `DB_FILE` | SQLite 파일 경로. 컨테이너 기본값 `/data/jipjigi.db` |
 | `MESSAGE_WEBHOOK_SECRET` | 메시지 공급자 웹훅 HMAC 검증 |
 | `NEXT_PUBLIC_APP_URL` | 메타데이터, 사이트맵의 정식 URL |
 | `ALLOW_DEMO_AUTH` | 명시적으로 `true`일 때만 프로덕션 데모 시드 허용 |
@@ -28,7 +28,7 @@ Upstash 변수 두 개를 모두 설정하면 로그인, 행동 이벤트, Core 
 `NEXT_PUBLIC_APP_URL`은 메타데이터와 사이트맵에 포함되므로 Docker 이미지 빌드 시에도 같은 값을 전달합니다.
 
 ```bash
-docker build --build-arg NEXT_PUBLIC_APP_URL=https://rentflow.example -t rentflow .
+docker build --build-arg NEXT_PUBLIC_APP_URL=https://jipjigi.example -t jipjigi .
 ```
 
 HTTPS 주소로 빌드한 프로덕션 이미지에서만 HSTS 헤더를 활성화합니다. 로컬 HTTP 검증 환경에는 HSTS를 보내지 않습니다.

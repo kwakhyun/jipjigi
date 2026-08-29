@@ -1,9 +1,9 @@
 "use client";
 
-import type { EventName } from "@rentflow/analytics";
+import type { EventName } from "@jipjigi/analytics";
 
-const ANONYMOUS_KEY = "rentflow:v1:anonymous-id";
-const SESSION_KEY = "rentflow:v1:session-id";
+const ANONYMOUS_KEY = "jipjigi:v1:anonymous-id";
+const SESSION_KEY = "jipjigi:v1:session-id";
 
 function storageId(storage: Storage, key: string) {
   const current = storage.getItem(key);

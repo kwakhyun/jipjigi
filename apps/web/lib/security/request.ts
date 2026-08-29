@@ -59,7 +59,7 @@ function distributedLimiter(limit: number, windowMs: number) {
   const limiter = new Ratelimit({
     redis: new Redis(configuration),
     limiter: Ratelimit.slidingWindow(limit, `${windowMs} ms` as Duration),
-    prefix: "rentflow:rate-limit",
+    prefix: "jipjigi:rate-limit",
     analytics: false,
     timeout: REDIS_TIMEOUT_MS,
   });
