@@ -1,0 +1,116 @@
+"use client";
+
+import type { ReactNode, ComponentType } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  BarChartIcon,
+  BellIcon,
+  ChatBubbleIcon,
+  ClipboardIcon,
+  FileTextIcon,
+  GearIcon,
+  HomeIcon,
+  MixerHorizontalIcon,
+} from "@radix-ui/react-icons";
+import { cx } from "@rentflow/ui";
+import { PageAnalytics } from "./page-analytics";
+
+type NavItem = {
+  href: string;
+  label: string;
+  mobileLabel?: string;
+  icon: ComponentType<{ width?: number; height?: number; "aria-hidden"?: boolean | "true" | "false" }>;
+};
+
+const primaryNavigation: NavItem[] = [
+  { href: "/app", label: "오늘의 브리핑", mobileLabel: "홈", icon: HomeIcon },
+  { href: "/app/ledger", label: "임대 장부", mobileLabel: "장부", icon: FileTextIcon },
+  { href: "/app/contracts", label: "계약 관리", mobileLabel: "계약", icon: ClipboardIcon },
+  { href: "/app/maintenance", label: "수리 요청", mobileLabel: "수리", icon: MixerHorizontalIcon },
+  { href: "/app/messages", label: "메시지 센터", mobileLabel: "메시지", icon: ChatBubbleIcon },
+];
+
+const operatorNavigation: NavItem[] = [
+  { href: "/app/growth", label: "그로스 관제", icon: BarChartIcon },
+  { href: "/app/settings", label: "운영 설정", mobileLabel: "설정", icon: GearIcon },
+];
+
+const ownerSecondaryNavigation: NavItem[] = [
+  { href: "/app/settings", label: "설정", icon: GearIcon },
+];
+
+function activePath(pathname: string, href: string) {
+  return href === "/app" ? pathname === href : pathname.startsWith(href);
+}
+
+export function AppShell({ children, user }: { children: ReactNode; user: { name: string; email: string; role: "owner" | "operator" } }) {
+  const pathname = usePathname();
+  const mainNavigation = user.role === "owner" ? primaryNavigation : operatorNavigation;
+  const secondaryNavigation = user.role === "owner" ? ownerSecondaryNavigation : [];
+  const homeHref = user.role === "owner" ? "/app" : "/app/growth";
+  return (
+    <div className="workspace-shell">
+      <a className="skip-link" href="#main-content">본문으로 건너뛰기</a>
+      <PageAnalytics />
+      <aside className="side-navigation" aria-label="주요 메뉴">
+        <Link className="side-brand" href={homeHref} aria-label="렌트플로우 홈">
+          <Image src="/assets/rentflow/brand-lockup.png" width={118} height={38} alt="렌트플로우" priority />
+        </Link>
+        <nav className="side-nav-list">
+          {mainNavigation.map((item) => (
+            <NavLink key={item.href} item={item} active={activePath(pathname, item.href)} />
+          ))}
+        </nav>
+        {secondaryNavigation.length ? <><div className="side-nav-divider" /><nav className="side-nav-list side-nav-secondary" aria-label="운영 메뉴">
+          {secondaryNavigation.map((item) => <NavLink key={item.href} item={item} active={activePath(pathname, item.href)} />)}
+        </nav></> : <div className="side-nav-secondary" />}
+        <div className="side-profile">
+          <span className="avatar" aria-hidden="true">{user.name.slice(0, 1)}</span>
+          <span><strong>{user.name}</strong><small>{user.email}</small></span>
+        </div>
+      </aside>
+      <div className="workspace-main-column">
+        <header className="mobile-app-header">
+          <Link href={homeHref} aria-label="렌트플로우 홈">
+            <Image src="/assets/rentflow/brand-lockup-on-dark.png" width={112} height={36} alt="렌트플로우" priority />
+          </Link>
+          {user.role === "owner" ? (
+            <Link className="header-icon-button" href="/app/messages" aria-label="메시지 알림 보기">
+              <BellIcon width={20} height={20} aria-hidden="true" />
+              <span className="header-notice-dot" />
+            </Link>
+          ) : (
+            <Link className="header-icon-button" href="/app/settings" aria-label="운영 설정 열기">
+              <GearIcon width={20} height={20} aria-hidden="true" />
+            </Link>
+          )}
+        </header>
+        <main id="main-content" className="workspace-content" tabIndex={-1}>{children}</main>
+      </div>
+      <nav className="mobile-bottom-nav" aria-label="모바일 주요 메뉴">
+        {mainNavigation.slice(0, 5).map((item) => {
+          const Icon = item.icon;
+          const active = activePath(pathname, item.href);
+          return (
+            <Link key={item.href} className={cx("mobile-nav-link", active && "is-active")} href={item.href} aria-current={active ? "page" : undefined}>
+              <Icon width={20} height={20} aria-hidden="true" />
+              <span>{item.mobileLabel ?? item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
+  );
+}
+
+function NavLink({ item, active }: { item: NavItem; active: boolean }) {
+  const Icon = item.icon;
+  return (
+    <Link className={cx("side-nav-link", active && "is-active")} href={item.href} aria-current={active ? "page" : undefined}>
+      <Icon width={19} height={19} aria-hidden="true" />
+      <span>{item.label}</span>
+    </Link>
+  );
+}

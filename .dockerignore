@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+.next
+**/.next
+.turbo
+.data
+prototype
+.git
+.github
+*.db*
+coverage
+docs
