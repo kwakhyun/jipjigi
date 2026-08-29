@@ -4,7 +4,7 @@ import { useState, useTransition, type FormEvent } from "react";
 import { CalendarIcon, CheckCircledIcon, ClockIcon, GearIcon, HomeIcon } from "@radix-ui/react-icons";
 import type { MaintenanceRow } from "@/lib/data/repository";
 import { track } from "@/lib/analytics/client";
-import { relativeDayLabel } from "@/lib/format/date";
+import { formatKoreanScheduleDateTime, relativeDayLabel } from "@/lib/format/date";
 import { useTransientMessage } from "@/lib/hooks/use-transient-message";
 import { submitOperation } from "@/lib/operations/client";
 
@@ -53,7 +53,7 @@ export function MaintenanceView({
         setSchedulingId(null);
         setScheduleValue("");
         track("maintenance_updated", { request_id: request.id, unit_id: request.unitName, outcome: "scheduled" });
-        showToast(`${formatScheduleDateTime(scheduledAt)} 방문으로 저장했어요.`);
+        showToast(`${formatKoreanScheduleDateTime(scheduledAt)} 방문으로 저장했어요.`);
       } catch (error) {
         showToast(error instanceof Error ? error.message : "방문 일정을 저장하지 못했습니다.");
       } finally {
@@ -74,7 +74,7 @@ export function MaintenanceView({
               <div className="maintenance-card-top"><span className="status-badge status-upcoming">{request.status === "received" ? "새 요청" : "방문 예정"}</span><time dateTime={request.requestedAt}>{relativeDayLabel(request.requestedAt, referenceTime)}</time></div>
               <div className="maintenance-title"><span className="maintenance-icon"><GearIcon /></span><div><h3>{request.title}</h3><p><HomeIcon /> {request.buildingName} {request.unitName}</p></div></div>
               <p className="maintenance-description">{request.description}</p>
-              <div className="maintenance-meta"><ClockIcon /><span>{request.status === "received" ? "방문 날짜와 시간을 정하면 임차인에게 일정을 공유할 수 있어요." : request.scheduledAt ? `${formatScheduleDateTime(request.scheduledAt)} 방문 예정` : "방문 일정이 등록됐어요."}</span></div>
+              <div className="maintenance-meta"><ClockIcon /><span>{request.status === "received" ? "방문 날짜와 시간을 정하면 임차인에게 일정을 공유할 수 있어요." : request.scheduledAt ? `${formatKoreanScheduleDateTime(request.scheduledAt)} 방문 예정` : "방문 일정이 등록됐어요."}</span></div>
               {request.status === "received" && schedulingId === request.id ? (
                 <form className="maintenance-schedule-form" id={`schedule-${request.id}`} onSubmit={(event) => scheduleVisit(event, request)}>
                   <label htmlFor={`schedule-at-${request.id}`}><CalendarIcon /><span>방문 날짜와 시간</span></label>
@@ -129,14 +129,4 @@ function minimumScheduleValue(referenceTime: string) {
   }).formatToParts(new Date(referenceTime));
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? "";
   return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}`;
-}
-
-function formatScheduleDateTime(value: string) {
-  return new Intl.DateTimeFormat("ko-KR", {
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "Asia/Seoul",
-  }).format(new Date(value));
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysUntilDate, relativeDayLabel } from "./date";
+import { daysUntilDate, formatKoreanScheduleDateTime, relativeDayLabel } from "./date";
 
 describe("date formatting", () => {
   it("uses the server-provided reference time for Seoul day calculations", () => {
@@ -9,5 +9,10 @@ describe("date formatting", () => {
   it("keeps relative labels deterministic across hydration", () => {
     expect(relativeDayLabel("2026-08-28T00:00:00.000Z", "2026-08-29T12:00:00.000Z")).toBe("1일 전");
     expect(relativeDayLabel("2026-08-29T08:00:00.000Z", "2026-08-29T12:00:00.000Z")).toBe("오늘");
+  });
+
+  it("uses Korean day periods regardless of the runtime locale", () => {
+    expect(formatKoreanScheduleDateTime("2026-09-01T01:30:00.000Z")).toBe("9월 1일 오전 10:30");
+    expect(formatKoreanScheduleDateTime("2026-09-01T06:05:00.000Z")).toBe("9월 1일 오후 3:05");
   });
 });

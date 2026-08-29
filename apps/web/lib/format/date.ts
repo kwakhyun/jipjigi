@@ -10,3 +10,19 @@ export function relativeDayLabel(value: string, referenceTime: string) {
   const days = Math.floor((Date.parse(referenceTime) - Date.parse(value)) / DAY_IN_MS);
   return days <= 0 ? "오늘" : `${days}일 전`;
 }
+
+export function formatKoreanScheduleDateTime(value: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: "Asia/Seoul",
+  }).formatToParts(new Date(value));
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? "";
+  const hour = Number(part("hour"));
+  const displayHour = hour % 12 || 12;
+
+  return `${Number(part("month"))}월 ${Number(part("day"))}일 ${hour < 12 ? "오전" : "오후"} ${displayHour}:${part("minute")}`;
+}
