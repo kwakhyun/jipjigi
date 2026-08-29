@@ -1,10 +1,17 @@
-# 프로덕션 아키텍처
+# 현재 및 목표 아키텍처
 
-## 1. 목표
+## 1. 현재 구현과 목표
 
 현재 `prototype`은 선택 디자인과 핵심 상호작용을 빠르게 검증하기 위한 모바일 런타임입니다. `apps/web`에는 웹 유입, 인증된 운영 화면, 모바일 API, 실험과 이벤트 수집이 pnpm 모노레포로 구현되어 있습니다. React Native 클라이언트와 실제 외부 공급자는 다음 단계입니다.
 
-## 2. 목표 저장소 구조
+| 구분 | 범위 |
+|---|---|
+| 현재 구현 | `apps/web`, `prototype`, `packages/domain`, `analytics`, `experiments`, `ui`, GitHub Actions와 Vercel 배포 |
+| 후속 설계 | React Native 앱, `api-client`, `native-ui`, Panda CSS 전환, 실제 CRM 공급자와 AWS Elastic Beanstalk 운영 |
+
+아래 구조와 운영 항목에는 현재 코드와 후속 목표가 함께 포함됩니다. 구현 여부가 중요한 항목은 [프로덕션 준비 상태](PRODUCTION-READINESS.md)와 [채용 요건 대응표](REQUIREMENT-MATRIX.md)에서 다시 구분합니다.
+
+## 2. 목표 저장소 구조와 후속 경계
 
 ```text
 jipjigi/
