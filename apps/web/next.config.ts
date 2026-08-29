@@ -18,7 +18,7 @@ const enableStrictTransportSecurity = process.env.NODE_ENV === "production"
   && process.env.NEXT_PUBLIC_APP_URL?.startsWith("https://");
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  ...(process.env.VERCEL ? {} : { output: "standalone" as const }),
   reactStrictMode: true,
   devIndicators: false,
   serverExternalPackages: ["better-sqlite3"],
