@@ -4,7 +4,7 @@ RentFlow는 1~20개 호실을 직접 관리하는 임대인이 오늘 처리할 
 
 자리톡과 같은 임대 관리 도메인을 다루되 브랜드, 정보 구조, 문구, 화면은 독립적으로 설계했습니다. 화면 시안에 머물지 않고 인증, 권한, 데이터 저장, API, 실험 배정, 이벤트 검증, 관제, 테스트와 배포까지 연결한 포트폴리오 프로젝트입니다.
 
-**라이브 데모:** [rentflow-frontend-portfolio.vercel.app](https://rentflow-frontend-portfolio.vercel.app)
+**라이브 데모:** [rentflow-khyun.vercel.app](https://rentflow-khyun.vercel.app)
 
 `main` 브랜치의 변경 사항은 GitHub Actions 검증과 Vercel 프로덕션 배포로 이어집니다.
 
