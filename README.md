@@ -96,7 +96,7 @@ Browser
 | 성능 관측 | 실제 브라우저 지표 수집과 최근 7일 p75 집계 | [수집 코드](apps/web/components/web-vitals-reporter.tsx), [집계 코드](apps/web/lib/data/repository.ts) |
 | 모바일 프로토타입 | Playwright 핵심 흐름 10개 통과 | `npm --prefix prototype run test:runtime` |
 | 정적 랜딩 | Node 테스트 4개 통과 | `npm --prefix prototype run test:sites` |
-| 지속적 통합 | 웹앱과 프로토타입을 독립 작업으로 검증하고 Vercel도 저장소 루트의 `pnpm verify`를 실행 | [CI 워크플로](.github/workflows/ci.yml), [Vercel 설정](vercel.json) |
+| 지속적 통합 | 웹앱과 프로토타입을 독립 작업으로 검증하고 Vercel도 저장소 루트의 `pnpm verify`를 실행 | [CI 워크플로](.github/workflows/ci.yml), [Vercel 설정](apps/web/vercel.json) |
 
 웹앱 검증은 다음 명령으로 재현합니다.
 

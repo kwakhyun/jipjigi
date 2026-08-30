@@ -40,6 +40,22 @@ HTTPS 주소로 빌드한 프로덕션 이미지에서만 HSTS 헤더를 활성�
 
 `GET /api/health`가 HTTP 200과 `database: ready`, `databaseStore: neon`, `rateLimitStore: redis`, `rateLimitReady: true`를 반환해야 합니다. 503이면 Neon과 Upstash 리소스 연결, 환경 변수 범위, 공급자 상태를 순서대로 확인합니다.
 
+## 무료 공개 데모 운영
+
+2026년 8월 31일 실제 계정과 리소스 설정을 확인했습니다.
+
+| 서비스 | 확인된 플랜 | 비용 제한 |
+| --- | --- | --- |
+| Vercel | Hobby, 활성 상태 | 개인 비상업 포트폴리오용 무료 플랜. 한도 초과 시 기능 제한 가능 |
+| Neon `jipjigi-postgres` | Free (`free_v3`) | 프로젝트당 100 CU-hours, 0.5 GB. 무료 초과 사용료 없음 |
+| Upstash `jipjigi-rate-limit` | Free (`free`) | 월 500,000 명령. `autoUpgrade=false`, `prodPack=false` |
+
+현재 구성은 유료 플랜으로 자동 전환하지 않습니다. 한도에 도달하면 자동 결제 대신 요청이나 서비스가 제한될 수 있습니다. 유료 플랜, 자동 업그레이드, 유료 부가 기능은 별도 승인 없이 켜지 않습니다. 무료 정책의 근거는 [Vercel Hobby](https://vercel.com/docs/plans/hobby), [Neon Free 한도](https://neon.com/docs/introduction/plans), [Upstash 자동 업그레이드](https://upstash.com/docs/redis/features/auto-upgrade)입니다.
+
+`ALLOW_DEMO_AUTH=true`인 공개 데모에는 실제 개인정보를 입력하지 않습니다. 공개 계정으로 샘플 데이터가 변경되며, 알림톡과 결제 등 유료 외부 공급자는 연결하지 않습니다. 미리보기와 운영은 현재 같은 데모 리소스를 공유하므로 파괴적인 검증은 로컬 PGlite에서만 수행합니다. 실제 고객 서비스를 시작할 때는 환경별 DB와 인증부터 분리해야 합니다.
+
+Vercel의 Root Directory는 `apps/web`이며 설정 파일도 `apps/web/vercel.json`에 둡니다. 함수, Neon과 Redis는 `sin1` 리전으로 맞춥니다. Turbo 웹 빌드에만 운영 환경 변수를 전달하고 테스트에는 전달하지 않습니다. Sensitive 환경 변수는 CLI로 내려받으면 빈 문자열로 표시될 수 있으므로 누락으로 단정하거나 비밀 값을 출력하지 말고 실행 결과로 확인합니다.
+
 ## 성능과 접근성 게이트
 
 `pnpm verify`는 타입 검사, 단위 및 컴포넌트 테스트, 프로덕션 빌드, 경로별 gzip 전송량 예산을 순서대로 실행합니다. 실제 사용자 성능은 `/app/growth`의 최근 7일 p75에서 확인합니다. 상세 기준은 [성능 관측성과 품질 예산](OBSERVABILITY.md)에 정리했습니다.
