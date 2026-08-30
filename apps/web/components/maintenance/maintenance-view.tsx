@@ -1,68 +1,62 @@
 "use client";
 
-import { useState, useTransition, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { CalendarIcon, CheckCircledIcon, ClockIcon, GearIcon, HomeIcon } from "@radix-ui/react-icons";
 import type { MaintenanceRow } from "@/lib/data/repository";
 import { formatKoreanScheduleDateTime, relativeDayLabel } from "@/lib/format/date";
 import { useTransientMessage } from "@/lib/hooks/use-transient-message";
-import { submitOperation } from "@/lib/operations/client";
+import { ownerResourceOptions } from "@/lib/query/options";
+import { useOwnerId } from "@/lib/query/owner-context";
+import { useOperationMutation } from "@/lib/query/use-operation";
+import { isSessionError } from "@/lib/query/client";
+import { QueryFeedback } from "@/components/query-feedback";
 
 export function MaintenanceView({
-  initialRequests,
   referenceTime,
   initialScheduleId,
 }: {
-  initialRequests: MaintenanceRow[];
   referenceTime: string;
   initialScheduleId?: string;
 }) {
-  const [requests, setRequests] = useState(initialRequests);
-  const [pendingId, setPendingId] = useState<string | null>(null);
+  const maintenance = useQuery(ownerResourceOptions(useOwnerId(), "maintenance"));
+  const requests = maintenance.data ?? [];
+  const operation = useOperationMutation();
+  const pendingId = operation.variables?.type === "update_maintenance" ? operation.variables.requestId : null;
   const [schedulingId, setSchedulingId] = useState(initialScheduleId ?? null);
   const [scheduleValue, setScheduleValue] = useState("");
-  const [isPending, startTransition] = useTransition();
+  const isPending = operation.isPending;
   const [toast, showToast] = useTransientMessage();
 
-  const completeRequest = (request: MaintenanceRow) => {
-    setPendingId(request.id);
-    startTransition(async () => {
-      try {
-        await submitOperation({ type: "update_maintenance", requestId: request.id, status: "completed" });
-        const updatedAt = new Date().toISOString();
-        setRequests((current) => current.map((item) => item.id === request.id ? { ...item, status: "completed", completedAt: updatedAt } : item));
-        showToast("수리 요청을 완료 처리했어요.");
-      } catch (error) {
-        showToast(error instanceof Error ? error.message : "상태를 변경하지 못했습니다.");
-      } finally {
-        setPendingId(null);
-      }
-    });
+  const completeRequest = async (request: MaintenanceRow) => {
+    try {
+      await operation.mutateAsync({ type: "update_maintenance", requestId: request.id, status: "completed" });
+      showToast("수리 요청을 완료 처리했어요.");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "상태를 변경하지 못했습니다.");
+    }
   };
 
-  const scheduleVisit = (event: FormEvent<HTMLFormElement>, request: MaintenanceRow) => {
+  const scheduleVisit = async (event: FormEvent<HTMLFormElement>, request: MaintenanceRow) => {
     event.preventDefault();
     if (!scheduleValue) return;
     const scheduledAt = new Date(`${scheduleValue}:00+09:00`).toISOString();
-    setPendingId(request.id);
-    startTransition(async () => {
-      try {
-        await submitOperation({ type: "update_maintenance", requestId: request.id, status: "scheduled", scheduledAt });
-        setRequests((current) => current.map((item) => item.id === request.id ? { ...item, status: "scheduled", scheduledAt } : item));
-        setSchedulingId(null);
-        setScheduleValue("");
-        showToast(`${formatKoreanScheduleDateTime(scheduledAt)} 방문으로 저장했어요.`);
-      } catch (error) {
-        showToast(error instanceof Error ? error.message : "방문 일정을 저장하지 못했습니다.");
-      } finally {
-        setPendingId(null);
-      }
-    });
+    try {
+      await operation.mutateAsync({ type: "update_maintenance", requestId: request.id, status: "scheduled", scheduledAt });
+      setSchedulingId(null);
+      setScheduleValue("");
+      showToast(`${formatKoreanScheduleDateTime(scheduledAt)} 방문으로 저장했어요.`);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "방문 일정을 저장하지 못했습니다.");
+    }
   };
 
   const open = requests.filter((request) => request.status !== "completed");
   const completed = requests.filter((request) => request.status === "completed");
+  if (!maintenance.data || isSessionError(maintenance.error)) return <QueryFeedback queries={[maintenance]} label="수리 요청" />;
   return (
     <>
+      <QueryFeedback queries={[maintenance]} label="수리 요청" />
       <section className="maintenance-board">
         <div className="maintenance-column">
           <div className="column-heading"><span className="status-dot dot-coral" /><div><h2>처리 중</h2><p>처리할 요청이 {open.length}건 있어요.</p></div></div>

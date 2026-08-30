@@ -2,8 +2,12 @@
 
 import { useState, useTransition, type FormEvent } from "react";
 import { CheckCircledIcon, ClockIcon, LockClosedIcon } from "@radix-ui/react-icons";
+import { useQueryClient } from "@tanstack/react-query";
 import { savePreferencesAction } from "@/app/app/actions";
 import { useTransientMessage } from "@/lib/hooks/use-transient-message";
+import { useOwnerId } from "@/lib/query/owner-context";
+import { ownerKeys } from "@/lib/query/keys";
+import { invalidateOwnerResources } from "@/lib/query/invalidation";
 
 type Settings = {
   rentReminder: boolean;
@@ -15,6 +19,8 @@ type Settings = {
 };
 
 export function SettingsForm({ initial }: { initial: Settings }) {
+  const queryClient = useQueryClient();
+  const ownerId = useOwnerId();
   const [value, setValue] = useState(initial);
   const [isPending, startTransition] = useTransition();
   const [status, showStatus] = useTransientMessage(2_500);
@@ -29,6 +35,10 @@ export function SettingsForm({ initial }: { initial: Settings }) {
     };
     startTransition(async () => {
       const result = await savePreferencesAction(next);
+      if (result.ok) {
+        queryClient.setQueryData(ownerKeys.resource(ownerId, "preferences"), result.data);
+        await invalidateOwnerResources(queryClient, ownerId, ["preferences", "briefing"]);
+      }
       showStatus(result.ok ? "변경 사항을 저장했어요." : result.error);
     });
   };

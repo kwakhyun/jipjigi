@@ -1,89 +1,69 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { CheckCircledIcon, ClockIcon, InfoCircledIcon, LockClosedIcon, PaperPlaneIcon } from "@radix-ui/react-icons";
-import type { MessageDispatchOperationResult } from "@jipjigi/domain";
-import type { ContractRow, LedgerRow, MessageRow } from "@/lib/data/repository";
+import type { MessageRow } from "@/lib/data/repository";
 import { useTransientMessage } from "@/lib/hooks/use-transient-message";
-import { submitOperation } from "@/lib/operations/client";
+import { ownerResourceOptions } from "@/lib/query/options";
+import { useOwnerId } from "@/lib/query/owner-context";
+import { useOperationMutation } from "@/lib/query/use-operation";
+import { isSessionError } from "@/lib/query/client";
+import { QueryFeedback } from "@/components/query-feedback";
 
 type Target = { kind: "charge" | "lease"; id: string; label: string; recipient: string; template: string };
 
-async function sendTarget(target: Target): Promise<MessageDispatchOperationResult> {
-  const result = target.kind === "charge"
-    ? await submitOperation({ type: "send_overdue_notice", chargeId: target.id })
-    : await submitOperation({ type: "start_renewal", leaseId: target.id });
-  if (!("id" in result)) throw new Error("메시지 접수 결과를 확인하지 못했습니다.");
-  return result;
-}
-
-export function MessagesView({ initialMessages, contracts, charges, initialTargetId, quietHours }: { initialMessages: MessageRow[]; contracts: ContractRow[]; charges: LedgerRow[]; initialTargetId?: string | undefined; quietHours: { start: string; end: string } }) {
+export function MessagesView({ initialTargetId }: { initialTargetId?: string | undefined }) {
+  const ownerId = useOwnerId();
+  const messagesQuery = useQuery({
+    ...ownerResourceOptions(ownerId, "messages"),
+    refetchInterval: (query) => !query.state.error && query.state.data?.some((message) => message.status === "accepted") ? 15_000 : false,
+    refetchIntervalInBackground: false,
+  });
+  const contractsQuery = useQuery(ownerResourceOptions(ownerId, "contracts"));
+  const ledgerQuery = useQuery(ownerResourceOptions(ownerId, "ledger"));
+  const preferencesQuery = useQuery(ownerResourceOptions(ownerId, "preferences"));
+  const contracts = contractsQuery.data ?? [];
+  const charges = ledgerQuery.data ?? [];
+  const messages = messagesQuery.data ?? [];
+  const operation = useOperationMutation();
   const targets = useMemo<Target[]>(() => [
     ...charges.filter((charge) => charge.status === "overdue").map((charge) => ({ kind: "charge" as const, id: charge.id, label: `${charge.unitName} 미납 안내`, recipient: charge.tenantName, template: `${charge.tenantName}님, ${charge.unitName}의 이번 달 임대료 입금 내역이 아직 확인되지 않아 안내드립니다. 이미 납부하셨다면 별도로 답변하지 않으셔도 됩니다.` })),
     ...contracts.filter((contract) => contract.renewalStatus === "attention").map((contract) => ({ kind: "lease" as const, id: contract.id, label: `${contract.unitName} 갱신 의사 확인`, recipient: contract.tenantName, template: `${contract.tenantName}님, 계약 만료일이 다가와 갱신 의사를 여쭙습니다. 편하실 때 답변 부탁드립니다.` })),
   ], [charges, contracts]);
   const [selectedId, setSelectedId] = useState(() => initialTargetId ?? targets[0]?.id ?? "");
-  const [messages, setMessages] = useState(initialMessages);
-  const [retryingId, setRetryingId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const retryingId = operation.variables?.type === "retry_message" ? operation.variables.messageId : null;
+  const isPending = operation.isPending;
   const [toast, showToast] = useTransientMessage(3_000);
   const selected = targets.find((target) => target.id === selectedId);
 
-  const send = () => {
+  const send = async () => {
     if (!selected) return;
-    startTransition(async () => {
-      try {
-        const result = await sendTarget(selected);
-        const nextMessage: MessageRow = {
-          id: result.id,
-          entityType: selected.kind,
-          entityId: selected.id,
-          channel: "sandbox_alimtalk",
-          templateKey: selected.kind === "charge" ? "overdue_notice_v1" : "renewal_check_v1",
-          status: result.status,
-          guardrailReason: result.guardrailReason,
-          scheduledFor: result.scheduledFor,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          deliveredAt: null,
-          retryCount: result.retryCount,
-        };
-        setMessages((current) => {
-          if (result.duplicate) return current.some((message) => message.id === result.id) ? current : [nextMessage, ...current];
-          return [nextMessage, ...current.filter((message) => message.id !== result.id)];
-        });
-        showToast(result.duplicate ? "같은 대상에 접수된 기존 메시지를 보여드려요." : result.status === "scheduled" ? "현재는 발송 제한 시간이라 다음 발송 가능 시간으로 예약했어요." : result.status === "blocked" ? "발송 제한 기준에 따라 메시지를 차단했어요." : "테스트 메시지를 접수했어요.");
-      } catch (error) {
-        showToast(error instanceof Error ? error.message : "메시지를 접수하지 못했습니다.");
-      }
-    });
+    try {
+      const result = await operation.mutateAsync(selected.kind === "charge" ? { type: "send_overdue_notice", chargeId: selected.id } : { type: "start_renewal", leaseId: selected.id });
+      if (!("id" in result)) throw new Error("메시지 접수 결과를 확인하지 못했습니다.");
+      showToast(result.duplicate ? "같은 대상에 접수된 기존 메시지를 보여드려요." : result.status === "scheduled" ? "현재는 발송 제한 시간이라 다음 발송 가능 시간으로 예약했어요." : result.status === "blocked" ? "발송 제한 기준에 따라 메시지를 차단했어요." : "테스트 메시지를 접수했어요.");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "메시지를 접수하지 못했습니다.");
+    }
   };
 
-  const retry = (message: MessageRow) => {
-    setRetryingId(message.id);
-    startTransition(async () => {
-      try {
-        const result = await submitOperation({ type: "retry_message", messageId: message.id });
-        if (!("id" in result)) throw new Error("재접수 결과를 확인하지 못했습니다.");
-        setMessages((current) => current.map((item) => item.id === message.id ? {
-          ...item,
-          status: result.status,
-          guardrailReason: result.guardrailReason,
-          scheduledFor: result.scheduledFor,
-          updatedAt: new Date().toISOString(),
-          retryCount: result.retryCount,
-        } : item));
-        showToast(result.status === "scheduled" ? "발송 가능 시간으로 다시 예약했어요." : result.status === "blocked" ? "현재 발송 조건을 충족하지 못해 차단했어요." : "실패한 메시지를 다시 접수했어요.");
-      } catch (error) {
-        showToast(error instanceof Error ? error.message : "메시지를 다시 접수하지 못했습니다.");
-      } finally {
-        setRetryingId(null);
-      }
-    });
+  const retry = async (message: MessageRow) => {
+    try {
+      const result = await operation.mutateAsync({ type: "retry_message", messageId: message.id });
+      if (!("id" in result)) throw new Error("재접수 결과를 확인하지 못했습니다.");
+      showToast(result.status === "scheduled" ? "발송 가능 시간으로 다시 예약했어요." : result.status === "blocked" ? "현재 발송 조건을 충족하지 못해 차단했어요." : "실패한 메시지를 다시 접수했어요.");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "메시지를 다시 접수하지 못했습니다.");
+    }
   };
 
+  const queries = [messagesQuery, contractsQuery, ledgerQuery, preferencesQuery];
+  if (!preferencesQuery.data || queries.some((query) => !query.data || isSessionError(query.error))) return <QueryFeedback queries={queries} label="메시지 센터" />;
+  const quietHours = { start: preferencesQuery.data.quietHoursStart, end: preferencesQuery.data.quietHoursEnd };
   return (
     <>
+      <QueryFeedback queries={queries} label="메시지 센터" />
       <div className="messages-layout">
         <section className="surface-card composer-card" aria-labelledby="composer-title">
           <div className="composer-heading"><div><span className="section-kicker" aria-hidden="true">샌드박스 채널</span><h2 id="composer-title">안전한 메시지 보내기</h2></div><span className="sandbox-badge">테스트 채널</span></div>
@@ -105,7 +85,7 @@ export function MessagesView({ initialMessages, contracts, charges, initialTarge
             <span><ClockIcon /> 발송 제한 {quietHours.start}~{quietHours.end} (한국 시간)</span>
             <span><LockClosedIcon /> 갱신은 24시간 1회, 미납은 청구월 1회</span>
           </div>
-          <button className="button button-primary button-wide" type="button" disabled={!selected || isPending} onClick={send}><PaperPlaneIcon /> {isPending ? "발송 조건 확인 중…" : "발송 조건 확인 후 접수"}</button>
+          <button className="button button-primary button-wide" type="button" disabled={!selected || isPending || queries.some((query) => query.isError)} onClick={send}><PaperPlaneIcon /> {isPending ? "발송 조건 확인 중…" : "발송 조건 확인 후 접수"}</button>
           <p className="sandbox-disclaimer"><InfoCircledIcon /> 실제 알림톡은 발송하지 않습니다. 예약은 시각과 상태 저장까지만 제공하며 자동 발송은 실행되지 않습니다. 실제 운영에는 공급자 연동과 예약 처리 워커가 필요합니다.</p>
         </section>
         <section className="surface-card outbox-card" aria-labelledby="outbox-title">

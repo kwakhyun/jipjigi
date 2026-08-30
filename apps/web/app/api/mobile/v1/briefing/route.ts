@@ -15,7 +15,7 @@ export async function GET(request: Request) {
       getOrCreateExperimentAssignment(session.userId),
     ]);
     return NextResponse.json(
-      { data: snapshot, experiment: { key: "home_briefing_priority_v1", variant } },
+      { data: snapshot, experiment: { key: "home_briefing_priority_v1", variant }, ownerId: session.userId },
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch {

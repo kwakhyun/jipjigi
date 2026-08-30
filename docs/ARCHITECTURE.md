@@ -53,7 +53,9 @@ jipjigi/
 
 ### 인증된 제품 화면
 
-브리핑 초기 데이터는 Server Component에서 읽어 직렬화 가능한 DTO로 전달합니다. 사용자 입력과 성공 응답을 반영하는 상태는 Client Component가 맡습니다. Client Component는 비동기 함수가 되지 않으며 `Date`, `Map`, 클래스 인스턴스를 서버 경계에서 전달하지 않습니다. 바텀시트는 현재 보호된 프로토타입에서 사용합니다.
+브리핑과 운영 목록의 초기 데이터는 Server Component에서 직접 읽고, 요청마다 생성한 QueryClient에서 `dehydrate`한 뒤 `HydrationBoundary`로 전달합니다. 클라이언트는 같은 Query 키로 이를 이어받아 재조회와 변경 후 동기화를 처리합니다. `Date`, `Map`, 클래스 인스턴스는 데이터 DTO로 전달하지 않습니다. 바텀시트는 현재 보호된 프로토타입에서 사용합니다.
+
+현재 `app/app/(management)`에는 홈, 계약, 장부, 수리, 메시지와 설정을 묶었습니다. 이 레이아웃의 임대인 분기만 계정별 Query 공급자를 사용합니다. `/app/growth`는 그룹 밖에 있어 Query 런타임을 받지 않으며, 그룹 이름은 URL에 나타나지 않습니다. Jotai 공급자는 선택 건물을 사용하는 홈 내부에만 둡니다.
 
 ```text
 Server Component
@@ -61,9 +63,10 @@ Server Component
   ├── 계약 위험, 수납, 일정 병렬 조회
   └── ISO 문자열과 평범한 객체로 직렬화
         ↓
-Client Briefing Island
-  ├── Jotai: 선택 건물과 내비게이션 상태
-  ├── TanStack Query: 건물별 브리핑 조회와 재조회
+Client Management Views
+  ├── Jotai: 홈의 선택 건물
+  ├── TanStack Query: 브리핑, 계약, 장부, 수리, 메시지, 미리보기 설정
+  ├── 로컬 상태: 검색, 필터, 일정 입력, 설정 초안
   └── analytics: 노출과 행동 이벤트
 ```
 
@@ -72,21 +75,24 @@ Client Briefing Island
 | 요구 | 선택 | 이유 |
 |---|---|---|
 | 웹 최초 읽기 | Server Component 직접 조회 | API 왕복과 클라이언트 폭포를 줄임 |
-| 웹 내부 변경 | Server Action | 타입 안전, 전환 상태, 점진적 향상 |
+| 웹 내부 변경 | Server Action + useMutation | 서버 인증과 검증을 유지하면서 진행 상태와 관련 캐시 무효화 관리. 설정 폼은 useTransition 유지 |
 | 모바일 읽기와 변경 | Route Handler | React Native가 사용할 명시적 HTTP 계약 필요 |
 | 알림톡과 광고 웹훅 | Route Handler | 외부 시스템의 서명 검증과 재시도 처리 |
 | 클라이언트 재조회 | TanStack Query | 캐시, 중복 요청 제거, 오류와 재시도 상태 관리 |
-| 일시적 UI 상태 | Jotai | 서버 상태와 분리된 작은 원자 단위 상태 관리 |
+| 일시적 UI 상태 | Jotai / useState | 선택 건물과 화면 내부 입력을 서버 상태와 분리 |
 
 기본 런타임은 Node.js입니다. Edge 런타임은 지리적 지연 요구와 의존성 호환성이 확인된 경로에만 제한합니다.
 
 ## 5. 상태 관리 규칙
 
-- 현재 TanStack Query는 홈의 건물별 브리핑에 사용합니다. 계약은 서버 props를 표시하며, 장부와 수리, 메시지는 서버 초기값과 성공 응답을 useState에 반영합니다.
-- Jotai에는 선택 건물과 내비게이션 상태만 둡니다. 입력과 필터는 해당 컴포넌트의 로컬 상태입니다.
-- 같은 서버 데이터를 Query와 Jotai에 중복 저장하지 않습니다.
-- Server Component가 가져온 초기 데이터는 Query의 `initialData`로 전달합니다.
-- Server Action 성공 후 업무 화면의 서버 캐시를 무효화합니다. 목록의 로컬 상태도 성공 응답 뒤 갱신하며, 중복 발송 방지는 서버 멱등 키가 책임집니다.
+- Query 키는 `owner / userId / resource`이고 브리핑에는 건물 ID를 추가합니다. 계정 전환 시 공급자를 새로 만들고 서버 QueryClient는 요청 간 공유하지 않습니다.
+- 최초 조회는 SSR hydration으로 인계합니다. 기존 캐시보다 최신인 서버 응답도 반영하므로 화면마다 `initialData`를 복제하지 않습니다.
+- 입금, 수리, 메시지 변경 후 관련 활성 Query를 재조회하고 비활성 Query를 무효화합니다. 서버 응답 실패에도 일부 저장 가능성을 고려해 재조회하며, 변경 자체는 자동 재실행하지 않습니다.
+- 기본 freshness는 30초입니다. 오래된 데이터는 화면 진입, 포커스 복귀와 연결 복구 시 다시 읽고 수동 새로고침도 제공합니다. `accepted` 메시지가 있는 동안만 보이는 탭에서 15초마다 조회하며 오류가 나면 폴링을 멈춥니다. 실시간 서버 푸시는 아닙니다.
+- GET `/api/workspace/[resource]`는 항목 허용 목록, 현재 임대인 역할, 소유자 ID, 요청 제한과 `private, no-store`를 검사합니다. 다른 계정의 응답은 캐시에 넣지 않습니다.
+- Jotai에는 홈의 선택 건물만 저장합니다. 검색어, 필터, 일정 입력과 설정 초안은 로컬 상태로 유지합니다.
+- 설정 폼은 Server Action 성공 후 미리보기 설정과 홈 Query를 갱신합니다. 조회 결과로 작성 중인 폼을 덮어쓰지 않습니다.
+- 공개 페이지와 그로스 관제는 SSR을 유지합니다. 선택 근거와 변경별 무효화 표는 [Query 적용 결정](QUERY-STATE.md)에 기록합니다.
 
 ## 6. 스타일과 디자인 시스템
 

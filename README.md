@@ -25,7 +25,7 @@
 
 로그인 화면의 **그로스 데모**는 서비스 운영자용 계정입니다. 개별 임대 계약을 관리하려면 **임대인 데모**를 선택하세요. 업무 화면 상단의 반대쪽 데모 전환 버튼을 누르면 현재 계정에서 로그아웃한 뒤 해당 데모가 선택된 로그인 화면으로 이동합니다. 일반 로그아웃 버튼도 두 역할에 공통으로 제공됩니다.
 
-계약 조회와 데모 전환은 [회귀 검증 기록](docs/audits/2026-08-31-contracts-and-demo-sessions.md), 이후 이벤트 신뢰 경계와 문서 정합성 개선은 [최신 개선 기록](docs/audits/2026-08-31-trust-and-consistency.md)에 정리했습니다. 기능 설명은 이 저장소 버전을 기준으로 하며, 라이브 반영 여부는 해당 커밋의 GitHub Actions와 Vercel 배포 결과로 확인합니다.
+계약 조회와 데모 전환은 [회귀 검증 기록](docs/audits/2026-08-31-contracts-and-demo-sessions.md), 이벤트 검증은 [신뢰 경계 개선 기록](docs/audits/2026-08-31-trust-and-consistency.md), 운영 데이터 동기화는 [Query 적용 결정과 검증](docs/QUERY-STATE.md)에 정리했습니다. 기능 설명은 이 저장소 버전을 기준으로 하며, 라이브 반영 여부는 해당 커밋의 GitHub Actions와 Vercel 배포 결과로 확인합니다.
 
 ## 제품 화면
 
@@ -53,11 +53,13 @@
 
 ### 서버 데이터와 일시적인 UI 상태의 소유권을 분리했습니다
 
-인증과 초기 데이터는 Server Component에서 읽습니다. TanStack Query는 홈의 건물별 브리핑 조회와 재조회를 맡고, Jotai에는 선택한 건물과 내비게이션 상태를 둡니다. 계약 목록은 서버 props를 표시하고, 장부와 수리, 메시지 화면은 서버에서 받은 초기값과 성공 응답을 로컬 상태에 반영합니다.
+인증과 초기 데이터는 Server Component에서 읽고 `HydrationBoundary`로 클라이언트 캐시에 전달합니다. TanStack Query는 건물별 브리핑, 계약, 장부, 수리, 메시지와 미리보기용 알림 설정의 조회를 맡습니다. 계약과 장부는 메시지 대상 선택에도 쓰이므로 화면마다 복제하지 않고 계정별 Query 키로 공유합니다.
 
-Server Action 성공 후에는 업무 화면의 서버 캐시를 무효화합니다. 다른 화면으로 이동할 때 최신 서버 상태를 조회하며, 같은 서버 데이터를 Jotai에 중복 저장하지 않습니다. 모든 목록이 TanStack Query를 사용하는 구조는 아닙니다.
+입금 확인과 메시지 접수 등은 `useMutation`으로 Server Action을 호출하고, 관련 캐시를 무효화해 서버의 저장 결과를 다시 읽습니다. 서버 캐시 재검증도 유지합니다. 납부 완료나 발송 성공을 낙관적으로 표시하지 않으며, 변경 요청은 자동 재시도하지 않습니다. 조회 오류에는 기존 정보와 재시도 버튼을 제공하고, 계정 변경을 감지하면 기존 정보를 숨깁니다.
 
-**구현 근거:** [서버 초기 데이터 조회](apps/web/app/app/page.tsx), [Query와 Jotai 공급자](apps/web/components/providers.tsx), [UI 상태 원자](apps/web/lib/state/workspace.ts), [조회와 변경 흐름](apps/web/components/dashboard/dashboard-view.tsx)
+선택 건물은 홈 내부의 Jotai, 검색어와 필터, 작성 중인 설정은 로컬 상태로 유지합니다. 공개 페이지와 조회 전용 그로스 관제는 Server Component만으로 충분해 Query를 추가하지 않았습니다.
+
+**구현 근거:** [SSR 데이터 인계](apps/web/components/query-hydration.tsx), [계정별 공급자](apps/web/components/providers.tsx), [변경 영향 범위](apps/web/lib/query/invalidation.ts), [동기화 회귀 테스트](apps/web/components/query-state.test.tsx), [적용 범위와 비용](docs/QUERY-STATE.md)
 
 ### CRM 요청은 발송보다 운영 안전성을 먼저 확인합니다
 
@@ -95,7 +97,7 @@ Browser
 
 | 대상 | 검증 결과 | 실행 근거 |
 | --- | --- | --- |
-| 프로덕션 웹앱 | 2026-08-31 전체 회귀 검증: 23개 파일, 77개 테스트 통과. 공통 패키지 8개 테스트 추가 통과 | [최신 검증 기록](docs/audits/2026-08-31-trust-and-consistency.md) |
+| 프로덕션 웹앱 | 2026-08-31 Query 적용 후 검증: 27개 파일, 102개 테스트 통과. 공통 패키지 8개 테스트 추가 통과 | [최신 검증 기록](docs/QUERY-STATE.md) |
 | 타입과 빌드 | TypeScript 검사, Next.js 프로덕션 빌드 통과 | `pnpm typecheck`, `pnpm build` |
 | 성능 예산 | 주요 화면 gzip 번들 예산 통과 | `pnpm bundle:check` |
 | 접근성 | 주요 내비게이션, 수리와 알림 설정에 axe-core 검사 적용 | [컴포넌트 테스트](apps/web/components/maintenance/maintenance-view.test.tsx) |
@@ -154,6 +156,7 @@ pnpm dev
 ### 엔지니어링과 운영
 
 - [현재 및 목표 아키텍처](docs/ARCHITECTURE.md)
+- [Query 적용 결정과 검증](docs/QUERY-STATE.md)
 - [프로덕션 준비 상태](docs/PRODUCTION-READINESS.md)
 - [디자인 시스템](docs/DESIGN-SYSTEM.md)
 - [성능 관측성과 품질 예산](docs/OBSERVABILITY.md)

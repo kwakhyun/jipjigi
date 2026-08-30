@@ -2,13 +2,19 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { CalendarIcon, CheckCircledIcon, InfoCircledIcon, PaperPlaneIcon } from "@radix-ui/react-icons";
 import { formatWon } from "@jipjigi/domain/format";
 import type { ContractRow, ContractTimelineEvent } from "@/lib/data/repository";
 import { daysUntilDate } from "@/lib/format/date";
+import { ownerResourceOptions } from "@/lib/query/options";
+import { useOwnerId } from "@/lib/query/owner-context";
+import { isSessionError } from "@/lib/query/client";
+import { QueryFeedback } from "@/components/query-feedback";
 
-export function ContractsView({ initialContracts, referenceTime }: { initialContracts: ContractRow[]; referenceTime: string }) {
-  const contracts = initialContracts;
+export function ContractsView({ referenceTime }: { referenceTime: string }) {
+  const contractsQuery = useQuery(ownerResourceOptions(useOwnerId(), "contracts"));
+  const contracts = contractsQuery.data ?? [];
   const [query, setQuery] = useState("");
   const visible = useMemo(() => contracts.filter((contract) => `${contract.unitName}${contract.tenantName}${contract.buildingName}`.includes(query.trim())), [contracts, query]);
   const attentionCount = contracts.filter((contract) => ["attention", "requested"].includes(contract.renewalStatus)).length;
@@ -17,8 +23,10 @@ export function ContractsView({ initialContracts, referenceTime }: { initialCont
     undefined,
   );
 
+  if (!contractsQuery.data || isSessionError(contractsQuery.error)) return <QueryFeedback queries={[contractsQuery]} label="계약 목록" />;
   return (
     <>
+      <QueryFeedback queries={[contractsQuery]} label="계약 목록" />
       <section className="contract-overview surface-card">
         <div><span className="section-kicker kicker-coral">선제 대응</span><h2>{attentionCount}건의 계약을 먼저 확인하세요</h2><p>계약 만료 60일 전부터 갱신 의사를 확인하면 공실 기간과 급한 협상을 줄일 수 있어요.</p></div>
         <div className="contract-overview-stat"><CalendarIcon /><span>가장 가까운 만료<strong>D-{daysUntilDate(closestEndDate, referenceTime)}</strong></span></div>

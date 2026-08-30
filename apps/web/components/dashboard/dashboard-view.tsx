@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, type ReactNode } from "react";
-import { useAtom } from "jotai";
+import { Provider as JotaiProvider, useAtom } from "jotai";
 import { useQuery } from "@tanstack/react-query";
 import {
   CalendarIcon,
@@ -15,47 +15,41 @@ import {
   HomeIcon,
   InfoCircledIcon,
   PaperPlaneIcon,
-  ReloadIcon,
 } from "@radix-ui/react-icons";
 import type { DashboardSnapshot } from "@jipjigi/domain";
 import { formatCompactWon, formatWon } from "@jipjigi/domain/format";
-import type { BriefingVariant } from "@jipjigi/experiments";
 import { selectedBuildingIdAtom } from "@/lib/state/workspace";
 import { track } from "@/lib/analytics/client";
-
-type BriefingResponse = {
-  data: DashboardSnapshot;
-  experiment: { key: string; variant: BriefingVariant };
-};
+import { briefingOptions } from "@/lib/query/options";
+import { useOwnerId } from "@/lib/query/owner-context";
+import { isSessionError } from "@/lib/query/client";
+import { QueryFeedback } from "@/components/query-feedback";
 
 type Building = { id: string; name: string; address: string; totalUnits: number; occupiedUnits: number };
 
-async function getBriefing(buildingId: string): Promise<BriefingResponse> {
-  const response = await fetch(`/api/mobile/v1/briefing?buildingId=${encodeURIComponent(buildingId)}`);
-  if (!response.ok) throw new Error("브리핑을 불러오지 못했습니다.");
-  return response.json() as Promise<BriefingResponse>;
+type DashboardProps = { initialBuildingId: string; buildings: Building[]; userName: string };
+
+export function DashboardView(props: DashboardProps) {
+  return <JotaiProvider><DashboardContent {...props} /></JotaiProvider>;
 }
 
-export function DashboardView({ initial, buildings, userName }: { initial: BriefingResponse; buildings: Building[]; userName: string }) {
+function DashboardContent({ initialBuildingId, buildings, userName }: DashboardProps) {
+  const ownerId = useOwnerId();
   const [selectedBuildingId, setSelectedBuildingId] = useAtom(selectedBuildingIdAtom);
-  const activeBuildingId = selectedBuildingId ?? initial.data.building.id;
-
-  const briefing = useQuery({
-    queryKey: ["briefing", activeBuildingId],
-    queryFn: () => getBriefing(activeBuildingId),
-    initialData: activeBuildingId === initial.data.building.id ? initial : undefined,
-  });
-  const value = briefing.data ?? initial;
-  const exposedRisk = value.data.briefing.renewal
+  const activeBuildingId = buildings.some((building) => building.id === selectedBuildingId) ? selectedBuildingId! : initialBuildingId;
+  const briefing = useQuery(briefingOptions(ownerId, activeBuildingId));
+  const value = briefing.data;
+  const exposedRisk = value?.data.briefing.renewal
     ? { type: "lease_expiring", id: value.data.briefing.renewal.leaseId }
-    : value.data.briefing.overdue
+    : value?.data.briefing.overdue
       ? { type: "payment_overdue", id: value.data.briefing.overdue.chargeId }
-      : value.data.briefing.maintenance
+      : value?.data.briefing.maintenance
         ? { type: "maintenance_urgent", id: value.data.briefing.maintenance.requestId }
         : null;
 
   useEffect(() => {
-    const exposureKey = `jipjigi:exposure:${value.experiment.key}:${value.experiment.variant}`;
+    if (!value || isSessionError(briefing.error)) return;
+    const exposureKey = `jipjigi:exposure:${ownerId}:${value.experiment.key}:${value.experiment.variant}`;
     try {
       if (window.sessionStorage.getItem(exposureKey)) return;
       window.sessionStorage.setItem(exposureKey, "1");
@@ -71,8 +65,9 @@ export function DashboardView({ initial, buildings, userName }: { initial: Brief
       experimentKey: value.experiment.key,
       variant: value.experiment.variant,
     });
-  }, [exposedRisk?.id, exposedRisk?.type, value.experiment.key, value.experiment.variant]);
+  }, [ownerId, exposedRisk?.id, exposedRisk?.type, value?.experiment.key, value?.experiment.variant, briefing.error]);
 
+  if (!value || isSessionError(briefing.error)) return <QueryFeedback queries={[briefing]} label="브리핑" />;
   const snapshot = value.data;
   const greetingName = /^[가-힣]{3}$/.test(userName) ? userName.slice(1) : userName;
   const attentionItems = [snapshot.briefing.renewal, snapshot.briefing.overdue, snapshot.briefing.maintenance].filter((item) => item !== null);
@@ -100,6 +95,7 @@ export function DashboardView({ initial, buildings, userName }: { initial: Brief
 
   return (
     <div className="dashboard-page">
+      <QueryFeedback queries={[briefing]} label="브리핑" />
       <section className="dashboard-hero" aria-labelledby="dashboard-title">
         <div className="dashboard-hero-overlay" />
         <div className="dashboard-hero-content">
@@ -139,7 +135,6 @@ export function DashboardView({ initial, buildings, userName }: { initial: Brief
 
       <div className="dashboard-grid">
         <div className="briefing-column">
-          {briefing.isFetching ? <div className="refresh-status" role="status"><ReloadIcon className="spin" /> 최신 상태 확인 중</div> : null}
           {briefings}
         </div>
         <aside className="activity-panel" aria-labelledby="activity-title">

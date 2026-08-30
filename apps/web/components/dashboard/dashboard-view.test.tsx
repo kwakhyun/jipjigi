@@ -2,9 +2,10 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DashboardSnapshot } from "@jipjigi/domain";
-vi.mock("@tanstack/react-query", () => ({ useQuery: ({ initialData }: { initialData: unknown }) => ({ data: initialData, isFetching: false }) }));
 vi.mock("@/lib/analytics/client", () => ({ track: vi.fn() }));
 import { DashboardView } from "./dashboard-view";
+import { ownerQueryHarness } from "@/lib/query/test-harness";
+import { ownerKeys } from "@/lib/query/keys";
 
 const snapshot: DashboardSnapshot = {
   generatedAt: "2026-08-31T00:00:00.000Z", hasMutedBriefings: false,
@@ -13,7 +14,11 @@ const snapshot: DashboardSnapshot = {
   briefing: { renewal: { leaseId: "lease-501", unitName: "501호", tenantName: "김가상", daysLeft: 30, currentDeposit: 10000000, currentRent: 500000, suggestedRent: 520000, status: "attention" }, overdue: { chargeId: "charge-203", unitName: "203호", tenantName: "이가상", amount: 500000, daysOverdue: 3, noticeStatus: "not_sent" }, maintenance: null }, recentActivities: [],
 };
 afterEach(cleanup);
-function view(data = snapshot) { return <DashboardView initial={{ data, experiment: { key: "home_briefing_priority_v1", variant: "risk-first" } }} buildings={[snapshot.building]} userName="데모" />; }
+function view(data = snapshot) {
+  const { Wrapper, client } = ownerQueryHarness();
+  client.setQueryData(ownerKeys.briefing("owner-1", data.building.id), { data, experiment: { key: "home_briefing_priority_v1", variant: "risk-first" } });
+  return <Wrapper><DashboardView initialBuildingId={data.building.id} buildings={[snapshot.building]} userName="데모" /></Wrapper>;
+}
 
 describe("홈의 근거와 발송 진입점", () => {
   it("조정 예시를 시세로 표현하지 않고 미리보기 링크를 제공한다", () => {

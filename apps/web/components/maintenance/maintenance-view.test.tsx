@@ -12,6 +12,7 @@ vi.mock("@/lib/operations/client", () => ({ submitOperation }));
 vi.mock("@/lib/analytics/client", () => ({ track }));
 
 import { MaintenanceView } from "./maintenance-view";
+import { ownerQueryHarness } from "@/lib/query/test-harness";
 
 const request = {
   id: "maintenance-302",
@@ -33,12 +34,19 @@ describe("MaintenanceView", () => {
 
   afterEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
     vi.clearAllMocks();
   });
 
   it("방문 일시를 선택한 뒤에만 일정을 저장한다", async () => {
     const user = userEvent.setup();
-    render(<MaintenanceView initialRequests={[request]} referenceTime="2026-08-30T01:00:00.000Z" />);
+    const harness = ownerQueryHarness({ maintenance: [request] });
+    vi.stubGlobal("fetch", harness.fetch);
+    submitOperation.mockImplementation(async () => {
+      harness.resources.maintenance = [{ ...request, status: "scheduled", scheduledAt: "2026-09-01T01:30:00.000Z" }];
+      return { status: "scheduled", unchanged: false };
+    });
+    render(<MaintenanceView referenceTime="2026-08-30T01:00:00.000Z" />, { wrapper: harness.Wrapper });
 
     await user.click(screen.getByRole("button", { name: "방문 일정 정하기" }));
     expect(submitOperation).not.toHaveBeenCalled();
@@ -57,7 +65,8 @@ describe("MaintenanceView", () => {
   });
 
   it("자동 접근성 검사에서 위반이 없다", async () => {
-    const { container } = render(<MaintenanceView initialRequests={[request]} referenceTime="2026-08-30T01:00:00.000Z" initialScheduleId="maintenance-302" />);
+    const { Wrapper } = ownerQueryHarness({ maintenance: [request] });
+    const { container } = render(<MaintenanceView referenceTime="2026-08-30T01:00:00.000Z" initialScheduleId="maintenance-302" />, { wrapper: Wrapper });
     const result = await axe.run(container, { rules: { "color-contrast": { enabled: false } } });
 
     expect(result.violations.map((violation) => violation.id)).toEqual([]);

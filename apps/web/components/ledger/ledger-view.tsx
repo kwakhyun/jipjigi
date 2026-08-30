@@ -2,20 +2,27 @@
 
 import Link from "next/link";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { CheckCircledIcon, ExclamationTriangleIcon, PaperPlaneIcon } from "@radix-ui/react-icons";
 import { formatWon } from "@jipjigi/domain/format";
 import type { LedgerRow } from "@/lib/data/repository";
 import { useTransientMessage } from "@/lib/hooks/use-transient-message";
-import { submitOperation } from "@/lib/operations/client";
+import { ownerResourceOptions } from "@/lib/query/options";
+import { useOwnerId } from "@/lib/query/owner-context";
+import { useOperationMutation } from "@/lib/query/use-operation";
+import { isSessionError } from "@/lib/query/client";
+import { QueryFeedback } from "@/components/query-feedback";
 
 type Filter = "all" | "paid" | "overdue";
 
-export function LedgerView({ initialRows }: { initialRows: LedgerRow[] }) {
-  const [rows, setRows] = useState(initialRows);
+export function LedgerView() {
+  const ledger = useQuery(ownerResourceOptions(useOwnerId(), "ledger"));
+  const rows = ledger.data ?? [];
   const [filter, setFilter] = useState<Filter>("all");
-  const [pendingId, setPendingId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const operation = useOperationMutation();
+  const isPending = operation.isPending;
+  const pendingId = operation.variables?.type === "mark_payment" ? operation.variables.chargeId : null;
   const [toast, showToast] = useTransientMessage();
   const visible = useMemo(() => filter === "all" ? rows : rows.filter((row) => row.status === filter), [filter, rows]);
   const totals = useMemo(() => rows.reduce(
@@ -31,23 +38,19 @@ export function LedgerView({ initialRows }: { initialRows: LedgerRow[] }) {
     { expected: 0, collected: 0, overdue: 0, overdueCount: 0 },
   ), [rows]);
 
-  const run = (row: LedgerRow) => {
-    setPendingId(row.id);
-    startTransition(async () => {
-      try {
-        await submitOperation({ type: "mark_payment", chargeId: row.id });
-        setRows((current) => current.map((item) => item.id === row.id ? { ...item, status: "paid", paidAt: new Date().toISOString() } : item));
-        showToast(`${row.unitName}의 입금을 확인하고 납부 완료로 반영했어요.`);
-      } catch (error) {
-        showToast(error instanceof Error ? error.message : "작업을 처리하지 못했습니다.");
-      } finally {
-        setPendingId(null);
-      }
-    });
+  const run = async (row: LedgerRow) => {
+    try {
+      await operation.mutateAsync({ type: "mark_payment", chargeId: row.id });
+      showToast(`${row.unitName}의 입금을 확인하고 납부 완료로 반영했어요.`);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "작업을 처리하지 못했습니다.");
+    }
   };
 
+  if (!ledger.data || isSessionError(ledger.error)) return <QueryFeedback queries={[ledger]} label="임대 장부" />;
   return (
     <>
+      <QueryFeedback queries={[ledger]} label="임대 장부" />
       <section className="summary-grid" aria-label="이달 임대료 요약">
         <article className="summary-card"><span>청구액</span><strong>{formatWon(totals.expected)}</strong><small>{rows.length}건 청구</small></article>
         <article className="summary-card summary-positive"><span>수납 완료</span><strong>{formatWon(totals.collected)}</strong><small>{totals.expected ? Math.round((totals.collected / totals.expected) * 100) : 0}% 수납</small></article>

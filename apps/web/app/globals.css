@@ -21,6 +21,11 @@
   --jj-font: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+.query-feedback { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.query-feedback p { margin: 0; color: var(--jj-text-muted, #6f6c7a); font-size: 13px; line-height: 1.5; }
+.query-feedback p[role="alert"] { color: #a33934; }
+.query-feedback .button { flex-shrink: 0; }
+
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--jj-canvas); color: var(--jj-ink); font-family: var(--jj-font); -webkit-font-smoothing: antialiased; }

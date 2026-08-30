@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DashboardView } from "@/components/dashboard/dashboard-view";
-import { Providers } from "@/components/providers";
+import { QueryHydration } from "@/components/query-hydration";
+import { ownerKeys } from "@/lib/query/keys";
 import { requireOwner } from "@/lib/auth/dal";
 import { getDashboardSnapshot, getOrCreateExperimentAssignment, listBuildings } from "@/lib/data/repository";
 
@@ -15,8 +16,8 @@ export default async function DashboardPage() {
     getOrCreateExperimentAssignment(user.id),
   ]);
   return (
-    <Providers>
-      <DashboardView initial={{ data: snapshot, experiment: { key: "home_briefing_priority_v1", variant } }} buildings={buildings} userName={user.name} />
-    </Providers>
+    <QueryHydration entries={[{ queryKey: ownerKeys.briefing(user.id, snapshot.building.id), data: { data: snapshot, experiment: { key: "home_briefing_priority_v1", variant } } }]}>
+      <DashboardView initialBuildingId={snapshot.building.id} buildings={buildings} userName={user.name} />
+    </QueryHydration>
   );
 }
