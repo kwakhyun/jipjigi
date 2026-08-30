@@ -28,6 +28,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
+        env:
+          # Reproduce the platform flag injected into Vercel Production builds.
+          # Vitest must isolate it from local PGlite/memory-based tests.
+          VERCEL_ENV: production
       - run: pnpm build
       - run: pnpm bundle:check
 
