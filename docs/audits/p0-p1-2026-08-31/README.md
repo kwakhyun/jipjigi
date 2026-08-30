@@ -57,3 +57,15 @@ P0 문제는 발견되지 않았습니다. P1 문제 3건을 확인했고 모두
 - 추가 회귀: 모바일 설정 진입, 역할 변경, 사용자 삭제, 운영 Redis 누락 시 차단
 - TypeScript 검사와 Next.js 프로덕션 빌드 통과
 - FigJam 보드: [집지기 P0·P1 제품 감사 및 개선 결과](https://www.figma.com/board/BmSg4yaCfvfhYCPecrWio9)
+
+## 배포 검증과 무료 운영 조건
+
+- 최종 Preview의 전체 품질 게이트 통과: 웹 테스트 31개, 타입 검사, Next.js 빌드와 경로별 번들 예산
+- `/api/health`: `status: ok`, `databaseStore: neon`, `rateLimitStore: redis`, `rateLimitReady: true`
+- Vercel 함수와 두 저장소 리전: `sin1`
+- 계정과 실제 리소스 조회: Vercel Hobby, Neon Free (`free_v3`), Upstash Free (`free`)
+- Redis 자동 유료 전환 비활성화: `autoUpgrade=false`, `prodPack=false`
+- 공개 데모는 가상 데이터만 사용하며 무료 한도 초과 시 중단을 허용합니다. 유료 인증, 알림톡, 결제 공급자는 연결하지 않았습니다.
+- Preview 브라우저에서 임대인 로그인, Neon 데이터 기반 홈과 설정 화면을 확인했습니다. 공유 데모 설정 저장은 외부 데이터 변경에 대한 승인 검토에서 차단되어 실행하지 않았으며, 저장 동작의 근거는 로컬 통합 테스트입니다.
+
+FigJam에는 스크린샷과 P1별 개선 메모가 연결되어 있습니다. 다만 무료 Starter 플랜의 MCP 호출 한도를 소진해 P1-03 메모의 외부 리소스 연결 대기 문구를 갱신하지 못했습니다. **연결은 완료됐으며 최신 실행 상태는 이 문서를 기준으로 확인합니다.** 보드를 수정하기 위해 유료 플랜으로 전환하지 않았습니다.
