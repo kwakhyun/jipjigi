@@ -55,64 +55,69 @@ function logicalIdempotencyKey(input: DispatchInput, context: DispatchContext, n
     .digest("hex");
 }
 
-function dispatchContext(input: DispatchInput): DispatchContext {
-  const db = getDatabase();
+async function dispatchContext(input: DispatchInput): Promise<DispatchContext> {
+  const db = await getDatabase();
   const context = input.entityType === "charge"
-    ? db.prepare(
+    ? await db.prepare(
         `SELECT l.contact_consent AS consent, l.id AS leaseId, c.period AS billingPeriod
          FROM charges c JOIN leases l ON l.id = c.lease_id
          JOIN units u ON u.id = l.unit_id JOIN buildings b ON b.id = u.building_id
          WHERE c.id = ? AND b.owner_id = ?`,
-      ).get(input.entityId, input.userId)
-    : db.prepare(
+      ).get<DispatchContext>(input.entityId, input.userId)
+    : await db.prepare(
         `SELECT l.contact_consent AS consent, l.id AS leaseId, NULL AS billingPeriod
          FROM leases l JOIN units u ON u.id = l.unit_id JOIN buildings b ON b.id = u.building_id
          WHERE l.id = ? AND b.owner_id = ?`,
-      ).get(input.entityId, input.userId);
+      ).get<DispatchContext>(input.entityId, input.userId);
   if (!context) throw new MessageDispatchError("NOT_FOUND", "메시지를 보낼 계약을 찾을 수 없습니다.");
-  return context as DispatchContext;
+  return context;
 }
 
-function preferences(userId: string) {
-  return getDatabase()
+async function preferences(userId: string) {
+  const database = await getDatabase();
+  const value = await database
     .prepare(
       `SELECT quiet_hours_start AS quietHoursStart, quiet_hours_end AS quietHoursEnd
        FROM notification_preferences WHERE user_id = ?`,
     )
-    .get(userId) as { quietHoursStart: string; quietHoursEnd: string };
+    .get<{ quietHoursStart: string; quietHoursEnd: string }>(userId);
+  return value ?? { quietHoursStart: "21:00", quietHoursEnd: "08:00" };
 }
 
-function appendDeliveryEvent(dispatchId: string, status: StoredDispatch["status"], retryCount: number, providerOccurredAt: string | null = null) {
-  getDatabase().prepare(
+async function appendDeliveryEvent(dispatchId: string, status: StoredDispatch["status"], retryCount: number, providerOccurredAt: string | null = null) {
+  const database = await getDatabase();
+  await database.prepare(
     `INSERT INTO message_delivery_events (
       id, dispatch_id, status, retry_count, provider_occurred_at, received_at
     ) VALUES (?, ?, ?, ?, ?, ?)`,
   ).run(randomUUID(), dispatchId, status, retryCount, providerOccurredAt, new Date().toISOString());
 }
 
-function storedDispatchByIdempotencyKey(userId: string, idempotencyKey: string) {
-  return getDatabase().prepare(
+async function storedDispatchByIdempotencyKey(userId: string, idempotencyKey: string) {
+  const database = await getDatabase();
+  return database.prepare(
     `SELECT id, entity_type AS entityType, entity_id AS entityId, template_key AS templateKey,
       status, guardrail_reason AS guardrailReason, scheduled_for AS scheduledFor,
       retry_count AS retryCount
      FROM message_dispatches WHERE idempotency_key = ? AND user_id = ?`,
-  ).get(idempotencyKey, userId) as StoredDispatch | undefined;
+  ).get<StoredDispatch>(idempotencyKey, userId);
 }
 
-function recentRenewalDispatch(userId: string, leaseId: string) {
-  return getDatabase().prepare(
+async function recentRenewalDispatch(userId: string, leaseId: string) {
+  const database = await getDatabase();
+  return database.prepare(
     `SELECT id, entity_type AS entityType, entity_id AS entityId, template_key AS templateKey,
       status, guardrail_reason AS guardrailReason, scheduled_for AS scheduledFor,
       retry_count AS retryCount
      FROM message_dispatches
      WHERE user_id = ? AND entity_type = 'lease' AND entity_id = ?
        AND status IN ('scheduled', 'accepted', 'delivered')
-       AND created_at >= datetime('now', '-24 hours')
+       AND created_at::timestamptz >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
      ORDER BY created_at DESC LIMIT 1`,
-  ).get(userId, leaseId) as StoredDispatch | undefined;
+  ).get<StoredDispatch>(userId, leaseId);
 }
 
-function recordDispatchEvents(input: DispatchInput, context: DispatchContext, result: StoredDispatch) {
+async function recordDispatchEvents(input: DispatchInput, context: DispatchContext, result: StoredDispatch) {
   const entityProperty = input.entityType === "charge" ? { charge_id: input.entityId } : { lease_id: input.entityId };
   const common = {
     ...entityProperty,
@@ -124,15 +129,15 @@ function recordDispatchEvents(input: DispatchInput, context: DispatchContext, re
     quiet_hours_applied: result.status === "scheduled",
     ...(context.billingPeriod ? { billing_period: context.billingPeriod } : {}),
   };
-  recordServerProductEvent("crm_message_requested", input.userId, "/app/messages", common);
+  await recordServerProductEvent("crm_message_requested", input.userId, "/app/messages", common);
   if (result.status === "blocked") {
-    recordServerProductEvent("crm_guardrail_blocked", input.userId, "/app/messages", {
+    await recordServerProductEvent("crm_guardrail_blocked", input.userId, "/app/messages", {
       ...common,
       reason: result.guardrailReason ?? "unknown",
     });
     return;
   }
-  recordServerProductEvent(
+  await recordServerProductEvent(
     input.entityType === "charge" ? "overdue_notice_requested" : "renewal_started",
     input.userId,
     input.entityType === "charge" ? "/app/ledger" : "/app/contracts",
@@ -140,30 +145,30 @@ function recordDispatchEvents(input: DispatchInput, context: DispatchContext, re
   );
 }
 
-export function dispatchTransactionalMessage(input: DispatchInput): MessageDispatchOperationResult {
-  const db = getDatabase();
+export async function dispatchTransactionalMessage(input: DispatchInput): Promise<MessageDispatchOperationResult> {
+  const db = await getDatabase();
   const nowDate = new Date();
   const now = nowDate.toISOString();
-  const context = dispatchContext(input);
+  const context = await dispatchContext(input);
   const idempotencyKey = logicalIdempotencyKey(input, context, nowDate);
-  const exactDuplicate = storedDispatchByIdempotencyKey(input.userId, idempotencyKey);
+  const exactDuplicate = await storedDispatchByIdempotencyKey(input.userId, idempotencyKey);
   if (exactDuplicate && exactDuplicate.status !== "blocked") return { ...exactDuplicate, duplicate: true };
 
   if (input.entityType === "lease") {
-    const recent = recentRenewalDispatch(input.userId, context.leaseId);
+    const recent = await recentRenewalDispatch(input.userId, context.leaseId);
     if (recent && recent.id !== exactDuplicate?.id) return { ...recent, duplicate: true };
   }
 
-  const recent = db.prepare(
-    `SELECT COUNT(*) AS count FROM message_dispatches
+  const recent = await db.prepare(
+    `SELECT COUNT(*)::int AS count FROM message_dispatches
      WHERE user_id = ? AND entity_type = ? AND entity_id = ?
        AND status IN ('scheduled', 'accepted', 'delivered')
-       AND created_at >= datetime('now', '-7 days')`,
-  ).get(input.userId, input.entityType, input.entityId) as { count: number };
-  const notificationPreferences = preferences(input.userId);
+       AND created_at::timestamptz >= CURRENT_TIMESTAMP - INTERVAL '7 days'`,
+  ).get<{ count: number }>(input.userId, input.entityType, input.entityId);
+  const notificationPreferences = await preferences(input.userId);
   const decision = evaluateGuardrails({
     consent: context.consent === 1,
-    recentDispatchCount: recent.count,
+    recentDispatchCount: recent?.count ?? 0,
     now: nowDate,
     ...notificationPreferences,
   });
@@ -176,29 +181,29 @@ export function dispatchTransactionalMessage(input: DispatchInput): MessageDispa
       return { ...exactDuplicate, duplicate: true };
     }
     const providerMessageId = status === "accepted" ? sandboxProviderId(exactDuplicate.id, exactDuplicate.retryCount) : null;
-    db.prepare(
+    await db.prepare(
       `UPDATE message_dispatches SET status = ?, guardrail_reason = ?, scheduled_for = ?,
         provider_message_id = ?, consent_checked = ?, updated_at = ? WHERE id = ?`,
     ).run(status, guardrailReason, scheduledFor, providerMessageId, Number(context.consent === 1), now, exactDuplicate.id);
     const reopened: StoredDispatch = { ...exactDuplicate, status, guardrailReason, scheduledFor, duplicate: false };
     if (input.entityType === "lease" && status !== "blocked") {
-      db.prepare("UPDATE leases SET renewal_status = 'requested' WHERE id = ?").run(input.entityId);
+      await db.prepare("UPDATE leases SET renewal_status = 'requested' WHERE id = ?").run(input.entityId);
     }
-    appendDeliveryEvent(reopened.id, reopened.status, reopened.retryCount);
-    writeAudit(input.userId, "message_guardrail_rechecked", input.entityType, input.entityId, {
+    await appendDeliveryEvent(reopened.id, reopened.status, reopened.retryCount);
+    await writeAudit(input.userId, "message_guardrail_rechecked", input.entityType, input.entityId, {
       messageId: reopened.id,
       status,
       guardrail: guardrailReason ?? "passed",
       templateVersion: "v1",
       consentSnapshot: context.consent === 1 ? "granted" : "missing",
     });
-    recordDispatchEvents(input, context, reopened);
+    await recordDispatchEvents(input, context, reopened);
     return reopened;
   }
 
   const id = randomUUID();
   const providerMessageId = status === "accepted" ? sandboxProviderId(id) : null;
-  db.prepare(
+  await db.prepare(
     `INSERT INTO message_dispatches (
       id, user_id, entity_type, entity_id, channel, template_key, template_version,
       idempotency_key, status, guardrail_reason, scheduled_for, provider_message_id,
@@ -211,10 +216,10 @@ export function dispatchTransactionalMessage(input: DispatchInput): MessageDispa
   );
 
   if (input.entityType === "lease" && status !== "blocked") {
-    db.prepare("UPDATE leases SET renewal_status = 'requested' WHERE id = ?").run(input.entityId);
+    await db.prepare("UPDATE leases SET renewal_status = 'requested' WHERE id = ?").run(input.entityId);
   }
-  appendDeliveryEvent(id, status, 0);
-  writeAudit(
+  await appendDeliveryEvent(id, status, 0);
+  await writeAudit(
     input.userId,
     input.entityType === "lease" ? "renewal_started" : "overdue_notice_requested",
     input.entityType,
@@ -238,18 +243,18 @@ export function dispatchTransactionalMessage(input: DispatchInput): MessageDispa
     duplicate: false,
     retryCount: 0,
   };
-  recordDispatchEvents(input, context, result);
+  await recordDispatchEvents(input, context, result);
   return result;
 }
 
-export function retryTransactionalMessage(userId: string, messageId: string): MessageDispatchOperationResult {
-  const db = getDatabase();
-  const message = db.prepare(
+export async function retryTransactionalMessage(userId: string, messageId: string): Promise<MessageDispatchOperationResult> {
+  const db = await getDatabase();
+  const message = await db.prepare(
     `SELECT id, entity_type AS entityType, entity_id AS entityId, template_key AS templateKey,
       status, guardrail_reason AS guardrailReason, scheduled_for AS scheduledFor,
       retry_count AS retryCount
      FROM message_dispatches WHERE id = ? AND user_id = ?`,
-  ).get(messageId, userId) as StoredDispatch | undefined;
+  ).get<StoredDispatch>(messageId, userId);
   if (!message) throw new MessageDispatchError("NOT_FOUND", "재시도할 메시지를 찾을 수 없습니다.");
   if (message.status !== "failed") throw new MessageDispatchError("RETRY_NOT_ALLOWED", "실패한 메시지만 다시 접수할 수 있습니다.");
 
@@ -259,12 +264,13 @@ export function retryTransactionalMessage(userId: string, messageId: string): Me
     entityId: message.entityId,
     templateKey: message.templateKey as DispatchInput["templateKey"],
   };
-  const context = dispatchContext(input);
+  const context = await dispatchContext(input);
+  const notificationPreferences = await preferences(userId);
   const decision = evaluateGuardrails({
     consent: context.consent === 1,
     recentDispatchCount: 0,
     now: new Date(),
-    ...preferences(userId),
+    ...notificationPreferences,
   });
   const status = decision.outcome === "allowed" ? "accepted" : decision.outcome;
   const guardrailReason = decision.outcome === "allowed" ? null : decision.reason;
@@ -272,19 +278,19 @@ export function retryTransactionalMessage(userId: string, messageId: string): Me
   const retryCount = message.retryCount + 1;
   const providerMessageId = status === "accepted" ? sandboxProviderId(message.id, retryCount) : null;
   const now = new Date().toISOString();
-  db.prepare(
+  await db.prepare(
     `UPDATE message_dispatches SET status = ?, guardrail_reason = ?, scheduled_for = ?,
       provider_message_id = ?, consent_checked = ?, retry_count = ?, updated_at = ? WHERE id = ?`,
   ).run(status, guardrailReason, scheduledFor, providerMessageId, Number(context.consent === 1), retryCount, now, message.id);
-  appendDeliveryEvent(message.id, status, retryCount);
-  writeAudit(userId, "message_retry_requested", message.entityType, message.entityId, {
+  await appendDeliveryEvent(message.id, status, retryCount);
+  await writeAudit(userId, "message_retry_requested", message.entityType, message.entityId, {
     messageId: message.id,
     retryCount,
     status,
     templateVersion: "v1",
     consentSnapshot: context.consent === 1 ? "granted" : "missing",
   });
-  recordServerProductEvent("crm_message_retry_requested", userId, "/app/messages", {
+  await recordServerProductEvent("crm_message_retry_requested", userId, "/app/messages", {
     message_id: message.id,
     channel: "sandbox_alimtalk",
     outcome: status,

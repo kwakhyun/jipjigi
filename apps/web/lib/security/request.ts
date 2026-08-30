@@ -44,8 +44,8 @@ function memoryRateLimit(key: string, limit: number, windowMs: number) {
 }
 
 function redisConfiguration() {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
   return url && token ? { url, token } : null;
 }
 
@@ -71,25 +71,51 @@ function warnRedisFailure(error: unknown) {
   const now = Date.now();
   if (now - lastRedisWarningAt < 60_000) return;
   lastRedisWarningAt = now;
-  logger.warn("rate_limit.redis_fallback", {
+  logger.warn("rate_limit.redis_failure", {
     errorType: error instanceof Error ? error.name : "UnknownError",
   });
 }
 
 export function rateLimitStore() {
-  return redisConfiguration() ? "redis" as const : "memory" as const;
+  if (redisConfiguration()) return "redis" as const;
+  return process.env.VERCEL_ENV === "production" ? "unavailable" as const : "memory" as const;
+}
+
+function unavailableRateLimit(windowMs: number) {
+  return { allowed: false, remaining: 0, resetAt: Date.now() + windowMs, store: "unavailable" as const };
+}
+
+export async function rateLimitHealth() {
+  const configuration = redisConfiguration();
+  if (!configuration) return process.env.VERCEL_ENV !== "production";
+  try {
+    const redis = new Redis(configuration);
+    const result = await Promise.race([
+      redis.ping(),
+      new Promise<"TIMEOUT">((resolve) => setTimeout(() => resolve("TIMEOUT"), REDIS_TIMEOUT_MS)),
+    ]);
+    return result === "PONG";
+  } catch {
+    return false;
+  }
 }
 
 export async function rateLimit(key: string, limit = 30, windowMs = 60_000) {
   const limiter = distributedLimiter(limit, windowMs);
-  if (!limiter) return memoryRateLimit(key, limit, windowMs);
+  if (!limiter) {
+    return process.env.VERCEL_ENV === "production"
+      ? unavailableRateLimit(windowMs)
+      : memoryRateLimit(key, limit, windowMs);
+  }
 
   try {
     const identifier = createHash("sha256").update(key).digest("hex");
     const result = await limiter.limit(identifier);
     if (result.reason === "timeout") {
       warnRedisFailure(new Error("UPSTASH_TIMEOUT"));
-      return memoryRateLimit(key, limit, windowMs);
+      return process.env.VERCEL_ENV === "production"
+        ? unavailableRateLimit(windowMs)
+        : memoryRateLimit(key, limit, windowMs);
     }
     return {
       allowed: result.success,
@@ -99,6 +125,8 @@ export async function rateLimit(key: string, limit = 30, windowMs = 60_000) {
     };
   } catch (error) {
     warnRedisFailure(error);
-    return memoryRateLimit(key, limit, windowMs);
+    return process.env.VERCEL_ENV === "production"
+      ? unavailableRateLimit(windowMs)
+      : memoryRateLimit(key, limit, windowMs);
   }
 }

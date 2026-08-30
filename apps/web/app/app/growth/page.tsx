@@ -28,8 +28,7 @@ const eventLabels: Record<string, string> = {
 
 export default async function GrowthPage() {
   await requireOperator();
-  const overview = getGrowthOverview();
-  const webVitals = getWebVitalsOverview();
+  const [overview, webVitals] = await Promise.all([getGrowthOverview(), getWebVitalsOverview()]);
   const eventMap = new Map(overview.eventCounts.map((item) => [item.name, item.count]));
   const views = eventMap.get("page_viewed") ?? 0;
   const actions = ["renewal_started", "overdue_notice_requested", "payment_marked", "maintenance_updated"].reduce((sum, key) => sum + (eventMap.get(key) ?? 0), 0);

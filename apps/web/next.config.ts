@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
   ...(process.env.VERCEL ? {} : { output: "standalone" as const }),
   reactStrictMode: true,
   devIndicators: false,
-  serverExternalPackages: ["better-sqlite3"],
+  serverExternalPackages: ["@electric-sql/pglite"],
   transpilePackages: ["@jipjigi/analytics", "@jipjigi/domain", "@jipjigi/experiments", "@jipjigi/ui"],
   experimental: {
     optimizePackageImports: ["@radix-ui/react-icons"],

@@ -12,6 +12,7 @@ export default defineConfig({
   test: {
     include: ["lib/**/*.test.ts", "components/**/*.test.tsx", "app/**/*.test.ts", "app/**/*.test.tsx", "proxy.test.ts"],
     exclude: [".next/**", "node_modules/**"],
+    maxWorkers: 4,
     testTimeout: 10_000,
   },
 });

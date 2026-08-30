@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChartIcon,
-  BellIcon,
   ChatBubbleIcon,
   ClipboardIcon,
   FileTextIcon,
@@ -77,9 +76,8 @@ export function AppShell({ children, user }: { children: ReactNode; user: { name
             <BrandLockup tone="dark" />
           </Link>
           {user.role === "owner" ? (
-            <Link className="header-icon-button" href="/app/messages" aria-label="메시지 알림 보기">
-              <BellIcon width={20} height={20} aria-hidden="true" />
-              <span className="header-notice-dot" />
+            <Link className="header-icon-button" href="/app/settings" aria-label="설정 및 계정 열기">
+              <GearIcon width={20} height={20} aria-hidden="true" />
             </Link>
           ) : (
             <Link className="header-icon-button" href="/app/settings" aria-label="운영 설정 열기">

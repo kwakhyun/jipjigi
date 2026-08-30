@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const user = await requireSession();
-  const preferences = user.role === "owner" ? getPreferences(user.id) : null;
+  const preferences = user.role === "owner" ? await getPreferences(user.id) : null;
   return (
     <div className="standard-page">
       <PageHeader eyebrow={user.role === "operator" ? "운영자 도구" : "운영 설정"} title={user.role === "operator" ? "운영 설정" : "설정"} description={user.role === "operator" ? "서비스 연동과 데이터 보호 상태를 확인합니다." : "알림 및 발송 설정, 서비스 연동, 계정을 관리합니다."} />

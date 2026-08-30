@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     const limit = await rateLimit(`operation:${session.userId}`, 40);
     if (!limit.allowed) return NextResponse.json({ error: "요청이 너무 많습니다." }, { status: 429, headers: { "x-request-id": requestId } });
     const operation = OperationSchema.parse(await request.json());
-    const result = runOperation(session.userId, operation);
+    const result = await runOperation(session.userId, operation);
     logger.info("operation.completed", { requestId, userId: session.userId, operation: operation.type, durationMs: Math.round(performance.now() - startedAt) });
     return NextResponse.json({ data: result }, { headers: { "x-request-id": requestId } });
   } catch (error) {

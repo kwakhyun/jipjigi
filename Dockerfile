@@ -26,8 +26,8 @@ ENV NODE_ENV=production
 ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
-ENV DB_FILE=/data/jipjigi.db
-RUN apk add --no-cache libc6-compat wget && mkdir -p /data && chown node:node /data
+ENV VERCEL_ENV=production
+RUN apk add --no-cache libc6-compat wget
 COPY --from=builder --chown=node:node /repo/apps/web/.next/standalone ./
 COPY --from=builder --chown=node:node /repo/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=node:node /repo/apps/web/public ./apps/web/public

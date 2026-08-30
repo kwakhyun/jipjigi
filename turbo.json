@@ -5,7 +5,7 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": [],
-      "env": ["AUTH_SECRET", "DB_FILE", "MESSAGE_WEBHOOK_SECRET", "NEXT_PUBLIC_APP_URL", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "VERCEL_GIT_COMMIT_SHA"]
+      "env": ["AUTH_SECRET", "DATABASE_URL", "DB_DIR", "MESSAGE_WEBHOOK_SECRET", "NEXT_PUBLIC_APP_URL", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "KV_REST_API_URL", "KV_REST_API_TOKEN", "VERCEL_GIT_COMMIT_SHA", "VERCEL_ENV"]
     },
     "@jipjigi/web#build": {
       "outputs": [".next/**", "!.next/cache/**"]
@@ -13,7 +13,7 @@
     "dev": {
       "cache": false,
       "persistent": true,
-      "env": ["AUTH_SECRET", "DB_FILE", "MESSAGE_WEBHOOK_SECRET", "NEXT_PUBLIC_APP_URL", "ALLOW_DEMO_AUTH", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "VERCEL_GIT_COMMIT_SHA"]
+      "env": ["AUTH_SECRET", "DATABASE_URL", "DB_DIR", "MESSAGE_WEBHOOK_SECRET", "NEXT_PUBLIC_APP_URL", "ALLOW_DEMO_AUTH", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "KV_REST_API_URL", "KV_REST_API_TOKEN", "VERCEL_GIT_COMMIT_SHA", "VERCEL_ENV"]
     },
     "typecheck": {
       "dependsOn": ["^typecheck"],

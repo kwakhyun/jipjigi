@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     if (!(await rateLimit(`event:${session?.userId ?? forwarded}`, 120)).allowed) {
       return NextResponse.json({ error: "이벤트 한도를 초과했습니다." }, { status: 429 });
     }
-    recordProductEvent(await request.json(), session?.userId ?? null);
+    await recordProductEvent(await request.json(), session?.userId ?? null);
     return new NextResponse(null, { status: 202 });
   } catch {
     return NextResponse.json({ error: "유효하지 않은 이벤트입니다." }, { status: 400 });

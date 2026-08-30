@@ -114,14 +114,14 @@ tokens → primitives → domain components → feature composition
 
 ## 8. 이벤트 수집
 
-클라이언트와 서버 변경 로직은 `packages/analytics`의 고정된 이벤트 이름을 사용합니다. 현재 서버는 스키마 검증, 중복 제거와 PII 필터링 뒤 SQLite에 저장합니다. 브라우저 전송 실패는 사용자 작업을 막지 않으며, 변경 작업과 웹훅의 핵심 이벤트는 서버가 저장합니다. 다중 인스턴스 전환 시 SQLite 쓰기를 내구성 큐와 웨어하우스로 교체합니다.
+클라이언트와 서버 변경 로직은 `packages/analytics`의 고정된 이벤트 이름을 사용합니다. 현재 서버는 스키마 검증, 중복 제거와 PII 필터링 뒤 Neon Postgres에 저장합니다. 로컬에서는 같은 PostgreSQL 쿼리를 PGlite로 실행합니다. 브라우저 전송 실패는 사용자 작업을 막지 않으며, 변경 작업과 웹훅의 핵심 이벤트는 서버가 저장합니다. 트래픽이 늘어나면 이벤트 쓰기를 내구성 큐와 웨어하우스로 분리합니다.
 
 ```text
 Web / Mobile
   → POST /api/events
   → schema validation + PII filter
-  → SQLite product_events (현재)
-  → durable queue → warehouse (수평 확장 후)
+  → Neon Postgres product_events (현재)
+  → durable queue → warehouse (트래픽 확장 후)
   → experiment and CRM dashboards
 ```
 

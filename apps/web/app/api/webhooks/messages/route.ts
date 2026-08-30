@@ -23,9 +23,10 @@ type DispatchRecord = {
   updatedAt: string;
 };
 
-function leaseIdForDispatch(dispatch: DispatchRecord) {
+async function leaseIdForDispatch(dispatch: DispatchRecord) {
   if (dispatch.entityType === "lease") return dispatch.entityId;
-  const charge = getDatabase().prepare("SELECT lease_id AS leaseId FROM charges WHERE id = ?").get(dispatch.entityId) as { leaseId: string } | undefined;
+  const database = await getDatabase();
+  const charge = await database.prepare("SELECT lease_id AS leaseId FROM charges WHERE id = ?").get<{ leaseId: string }>(dispatch.entityId);
   return charge?.leaseId;
 }
 
@@ -36,25 +37,25 @@ export async function POST(request: Request) {
   }
   try {
     const event = WebhookSchema.parse(JSON.parse(body));
-    const db = getDatabase();
-    const dispatch = db.prepare(
+    const db = await getDatabase();
+    const dispatch = await db.prepare(
       `SELECT id, user_id AS userId, entity_type AS entityType, entity_id AS entityId,
         channel, status, retry_count AS retryCount, updated_at AS updatedAt
        FROM message_dispatches WHERE provider_message_id = ?`,
-    ).get(event.providerMessageId) as DispatchRecord | undefined;
+    ).get<DispatchRecord>(event.providerMessageId);
     if (!dispatch) return NextResponse.json({ error: "메시지를 찾을 수 없습니다." }, { status: 404 });
 
     if (event.status === "opted_out") {
-      const leaseId = leaseIdForDispatch(dispatch);
+      const leaseId = await leaseIdForDispatch(dispatch);
       if (!leaseId) return NextResponse.json({ error: "계약을 찾을 수 없습니다." }, { status: 404 });
-      const inserted = db.prepare(
+      const inserted = await db.prepare(
         `INSERT OR IGNORE INTO crm_opt_outs (id, user_id, lease_id, channel, occurred_at)
          VALUES (?, ?, ?, ?, ?)`,
       ).run(randomUUID(), dispatch.userId, leaseId, dispatch.channel, event.occurredAt);
-      db.prepare("UPDATE leases SET contact_consent = 0 WHERE id = ?").run(leaseId);
+      await db.prepare("UPDATE leases SET contact_consent = 0 WHERE id = ?").run(leaseId);
       if (inserted.changes > 0) {
-        writeAudit(dispatch.userId, "crm_opted_out", "lease", leaseId, { channel: dispatch.channel, messageId: dispatch.id });
-        recordServerProductEvent("crm_opted_out", dispatch.userId, "/api/webhooks/messages", {
+        await writeAudit(dispatch.userId, "crm_opted_out", "lease", leaseId, { channel: dispatch.channel, messageId: dispatch.id });
+        await recordServerProductEvent("crm_opted_out", dispatch.userId, "/api/webhooks/messages", {
           message_id: dispatch.id,
           lease_id: leaseId,
           channel: dispatch.channel,
@@ -68,21 +69,21 @@ export async function POST(request: Request) {
     if (dispatch.status === "delivered" || Date.parse(event.occurredAt) < Date.parse(dispatch.updatedAt)) {
       return NextResponse.json({ received: true, stale: true });
     }
-    db.prepare(
+    await db.prepare(
       `UPDATE message_dispatches SET status = ?, delivered_at = CASE WHEN ? = 'delivered' THEN ? ELSE delivered_at END,
         updated_at = ? WHERE id = ?`,
     ).run(event.status, event.status, event.occurredAt, event.occurredAt, dispatch.id);
-    db.prepare(
+    await db.prepare(
       `INSERT INTO message_delivery_events (
         id, dispatch_id, status, retry_count, provider_occurred_at, received_at
       ) VALUES (?, ?, ?, ?, ?, ?)`,
     ).run(randomUUID(), dispatch.id, event.status, dispatch.retryCount, event.occurredAt, new Date().toISOString());
-    writeAudit(dispatch.userId, "message_delivery_updated", dispatch.entityType, dispatch.entityId, {
+    await writeAudit(dispatch.userId, "message_delivery_updated", dispatch.entityType, dispatch.entityId, {
       messageId: dispatch.id,
       providerStatus: event.status,
       retryCount: dispatch.retryCount,
     });
-    recordServerProductEvent("crm_message_delivery_updated", dispatch.userId, "/api/webhooks/messages", {
+    await recordServerProductEvent("crm_message_delivery_updated", dispatch.userId, "/api/webhooks/messages", {
       message_id: dispatch.id,
       [dispatch.entityType === "charge" ? "charge_id" : "lease_id"]: dispatch.entityId,
       channel: dispatch.channel,

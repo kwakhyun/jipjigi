@@ -10,8 +10,10 @@ export async function GET(request: Request) {
   if (session.role !== "owner") return NextResponse.json({ error: "임대인 계정에서만 사용할 수 있습니다." }, { status: 403 });
   const { searchParams } = new URL(request.url);
   try {
-    const snapshot = getDashboardSnapshot(session.userId, searchParams.get("buildingId") ?? undefined);
-    const variant = getOrCreateExperimentAssignment(session.userId);
+    const [snapshot, variant] = await Promise.all([
+      getDashboardSnapshot(session.userId, searchParams.get("buildingId") ?? undefined),
+      getOrCreateExperimentAssignment(session.userId),
+    ]);
     return NextResponse.json(
       { data: snapshot, experiment: { key: "home_briefing_priority_v1", variant } },
       { headers: { "Cache-Control": "private, no-store" } },

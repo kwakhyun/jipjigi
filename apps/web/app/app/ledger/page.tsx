@@ -9,5 +9,6 @@ export const dynamic = "force-dynamic";
 
 export default async function LedgerPage() {
   const user = await requireOwner();
-  return <div className="standard-page"><PageHeader eyebrow="임대료 관리" title="임대 장부" description="입금 여부와 미납 조치를 한 화면에서 관리합니다." /><LedgerView initialRows={listLedger(user.id)} /></div>;
+  const rows = await listLedger(user.id);
+  return <div className="standard-page"><PageHeader eyebrow="임대료 관리" title="임대 장부" description="입금 여부와 미납 조치를 한 화면에서 관리합니다." /><LedgerView initialRows={rows} /></div>;
 }

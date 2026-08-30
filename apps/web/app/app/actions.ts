@@ -27,7 +27,7 @@ export async function runOperationAction(input: Operation): Promise<ActionResult
 
   const startedAt = performance.now();
   try {
-    const data = runOperation(user.id, parsed.data);
+    const data = await runOperation(user.id, parsed.data);
     logger.info("operation.action.completed", {
       userId: user.id,
       operation: parsed.data.type,
@@ -59,7 +59,7 @@ export async function savePreferencesAction(
   if (!parsed.success) return { ok: false, error: "알림 설정을 다시 확인해 주세요.", code: "INVALID_INPUT" };
 
   try {
-    return { ok: true, data: updatePreferences(user.id, parsed.data) };
+    return { ok: true, data: await updatePreferences(user.id, parsed.data) };
   } catch (error) {
     logger.error("preferences.action.failed", {
       userId: user.id,

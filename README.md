@@ -69,16 +69,16 @@ Browser
       ├─ Server Components / Route Handlers
       ├─ TanStack Query / Jotai
       ├─ Domain, Analytics, Experiments, UI packages
-      └─ better-sqlite3 / SQLite
-          ├─ Local demo data
-          └─ Sandbox notification provider
+      ├─ Neon Postgres / local PGlite
+      ├─ Upstash Redis rate limiting
+      └─ Sandbox notification provider
 ```
 
 | 영역 | 기술 |
 | --- | --- |
 | 프론트엔드 | Next.js 16, React 19, TypeScript, TanStack Query, Jotai |
 | 서버 | Next.js Route Handler, Server Action, Server Component, Zod |
-| 데이터 | SQLite, 선택형 Redis 요청 제한 |
+| 데이터 | Neon Postgres, 로컬 PGlite, Upstash Redis |
 | 모노레포 | pnpm workspace, Turborepo |
 | 테스트 | Vitest, Testing Library, axe-core, 프로토타입 Playwright |
 | 운영 | GitHub Actions, Vercel, 구조화 로그, Core Web Vitals |
@@ -89,7 +89,7 @@ Browser
 
 | 대상 | 검증 결과 | 실행 근거 |
 | --- | --- | --- |
-| 프로덕션 웹앱 | 단위 및 통합 테스트 11개 파일, 26개 테스트 통과 | `pnpm --filter @jipjigi/web test` |
+| 프로덕션 웹앱 | 단위 및 통합 테스트 13개 파일, 31개 테스트 통과 | `pnpm --filter @jipjigi/web test` |
 | 타입과 빌드 | TypeScript 검사, Next.js 프로덕션 빌드 통과 | `pnpm typecheck`, `pnpm build` |
 | 성능 예산 | 주요 화면 gzip 번들 예산 통과 | `pnpm bundle:check` |
 | 접근성 | 주요 내비게이션, 수리와 알림 설정에 axe-core 검사 적용 | [컴포넌트 테스트](apps/web/components/maintenance/maintenance-view.test.tsx) |
@@ -116,9 +116,9 @@ npm --prefix prototype run test:sites
 
 ## 운영 전환 경계
 
-현재 결과물은 프로덕션 구조와 배포 흐름을 검증한 공개 포트폴리오 데모입니다. 외부 알림톡은 실제 공급자 계약 대신 샌드박스를 사용하고, 금융 정보는 데모 데이터로 제공합니다. Vercel의 SQLite 데이터는 영구 보관을 전제로 하지 않습니다.
+현재 결과물은 프로덕션 구조와 배포 흐름을 검증한 공개 포트폴리오 데모입니다. Vercel에서는 Neon Postgres가 영속 데이터를 보관하고 Upstash Redis가 인스턴스 간 요청 제한을 공유합니다. 로컬 개발은 같은 PostgreSQL 문법을 실행하는 PGlite를 사용합니다. 외부 알림톡은 실제 공급자 계약 대신 샌드박스를 사용하고, 금융 정보는 데모 데이터로 제공합니다.
 
-실서비스로 전환하려면 관리형 PostgreSQL, 내구성 이벤트 큐, 실제 인증과 CRM 공급자, 중앙 비밀 값 관리와 장애 알림이 필요합니다. 구현된 범위와 후속 작업은 [프로덕션 준비 상태](docs/PRODUCTION-READINESS.md)에서 구분해 확인할 수 있습니다.
+실서비스로 전환하려면 내구성 이벤트 큐, 실제 인증과 CRM 공급자, 중앙 비밀 값 관리와 장애 알림이 추가로 필요합니다. 구현된 범위와 후속 작업은 [프로덕션 준비 상태](docs/PRODUCTION-READINESS.md)에서 구분해 확인할 수 있습니다.
 
 실험 결과를 과장하지 않기 위해 실제 사용자 데이터가 없는 지표는 성과로 표기하지 않았습니다. 이 프로젝트는 실험을 설계하고 측정 가능한 상태로 구현하는 역량을 보여주는 데 초점을 둡니다.
 
@@ -158,6 +158,7 @@ pnpm dev
 
 - [AI 활용과 검증 원칙](docs/AI-WORKFLOW.md)
 - [전달 계획과 완료 조건](docs/DELIVERY-PLAN.md)
+- [P0·P1 제품 감사와 개선 결과](docs/audits/p0-p1-2026-08-31/README.md)
 - [프로덕션 디자인 QA](design-qa.md)
 - [보호된 모바일 시안 디자인 QA](prototype/design-qa.md)
 

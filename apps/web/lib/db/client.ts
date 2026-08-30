@@ -1,198 +1,192 @@
-import fs from "node:fs";
 import path from "node:path";
-import Database from "better-sqlite3";
 import bcrypt from "bcryptjs";
 
+type QueryResult<Row> = {
+  rows: Row[];
+  affectedRows?: number;
+  rowCount?: number | null;
+};
+
+type Queryable = {
+  query(sql: string, params?: unknown[]): Promise<QueryResult<unknown>>;
+  exec?(sql: string): Promise<unknown>;
+};
+
+type TransactionRunner = <Value>(callback: (queryable: Queryable) => Promise<Value>) => Promise<Value>;
+
 type GlobalDatabase = typeof globalThis & {
-  __jipjigiDatabase?: Database.Database;
+  __jipjigiDatabase?: Promise<AppDatabase>;
 };
 
 const globalDatabase = globalThis as GlobalDatabase;
 
-function databaseFile() {
-  const configured = process.env.DB_FILE ?? "../../.data/jipjigi.db";
+function postgresSql(sql: string) {
+  let parameter = 0;
+  const normalized = sql
+    .replace(/\?/g, () => `$${++parameter}`)
+    .replace(/\bAS\s+([a-z][A-Za-z0-9]*[A-Z][A-Za-z0-9]*)\b/g, 'AS "$1"')
+    .replace(/\b([A-Za-z_][A-Za-z0-9_]*)\.([a-z][A-Za-z0-9]*[A-Z][A-Za-z0-9]*)\b/g, '$1."$2"');
+  if (!/^\s*INSERT\s+OR\s+IGNORE\s+INTO/i.test(normalized)) return normalized;
+  return `${normalized.replace(/INSERT\s+OR\s+IGNORE\s+INTO/i, "INSERT INTO").replace(/;\s*$/, "")} ON CONFLICT DO NOTHING`;
+}
+
+class PreparedStatement {
+  constructor(private readonly database: AppDatabase, private readonly sql: string) {}
+
+  async get<Row>(...params: unknown[]) {
+    const result = await this.database.query<Row>(this.sql, params);
+    return result.rows[0];
+  }
+
+  async all<Row>(...params: unknown[]) {
+    const result = await this.database.query<Row>(this.sql, params);
+    return result.rows;
+  }
+
+  async run(...params: unknown[]) {
+    const result = await this.database.query(this.sql, params);
+    return { changes: result.affectedRows ?? result.rowCount ?? 0 };
+  }
+}
+
+export class AppDatabase {
+  constructor(
+    private readonly queryable: Queryable,
+    private readonly transactionRunner: TransactionRunner,
+    private readonly closeRunner: () => Promise<void>,
+    readonly store: "neon" | "pglite",
+  ) {}
+
+  prepare(sql: string) {
+    return new PreparedStatement(this, postgresSql(sql));
+  }
+
+  async query<Row>(sql: string, params: unknown[] = []) {
+    return this.queryable.query(postgresSql(sql), params) as Promise<QueryResult<Row>>;
+  }
+
+  async exec(sql: string) {
+    const normalized = postgresSql(sql);
+    return this.queryable.exec ? this.queryable.exec(normalized) : this.queryable.query(normalized);
+  }
+
+  async transaction<Value>(callback: (database: AppDatabase) => Promise<Value>) {
+    return this.transactionRunner(async (queryable) => callback(new AppDatabase(
+      queryable,
+      async (nested) => nested(queryable),
+      async () => undefined,
+      this.store,
+    )));
+  }
+
+  async close() {
+    await this.closeRunner();
+  }
+}
+
+function localDatabaseDirectory() {
+  const configured = process.env.DB_DIR ?? "../../.data/jipjigi-pg";
   return path.resolve(/* turbopackIgnore: true */ process.cwd(), configured);
 }
 
-function seedDemoOperator(db: Database.Database) {
-  const demoEnabled = process.env.NODE_ENV !== "production" || process.env.ALLOW_DEMO_AUTH === "true";
-  if (!demoEnabled) return;
-  const existing = db.prepare("SELECT id FROM users WHERE id = ?").get("operator-1");
-  if (existing) return;
-  const now = new Date().toISOString();
-  const insertOperator = db.transaction(() => {
-    db.prepare(
-      `INSERT INTO users (id, email, name, password_hash, role, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("operator-1", "growth@jipjigi.kr", "집지기 운영자", bcrypt.hashSync("demo1234!", 10), "operator", now);
-    db.prepare(
-      `INSERT INTO notification_preferences (
-        user_id, rent_reminder, renewal_reminder, maintenance_updates, marketing,
-        quiet_hours_start, quiet_hours_end, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run("operator-1", 0, 0, 0, 0, "21:00", "08:00", now);
-  });
-  insertOperator();
+async function executeStatements(
+  query: (sql: string) => Promise<unknown>,
+  sql: string,
+) {
+  for (const statement of sql.split(";").map((value) => value.trim()).filter(Boolean)) {
+    await query(statement);
+  }
 }
 
-function seedDatabase(db: Database.Database) {
-  const existing = db.prepare("SELECT COUNT(*) AS count FROM users").get() as { count: number };
-  if (existing.count > 0) {
-    seedDemoOperator(db);
+async function createDatabase() {
+  const connectionString = process.env.DATABASE_URL;
+  let database: AppDatabase;
+
+  if (connectionString) {
+    const { Pool, neonConfig } = await import("@neondatabase/serverless");
+    neonConfig.webSocketConstructor = globalThis.WebSocket;
+    const pool = new Pool({ connectionString, max: 8, connectionTimeoutMillis: 8_000, idleTimeoutMillis: 20_000 });
+    const queryable: Queryable = {
+      query: (sql, params) => pool.query(sql, params) as Promise<QueryResult<unknown>>,
+      exec: (sql) => executeStatements((statement) => pool.query(statement), sql),
+    };
+    database = new AppDatabase(
+      queryable,
+      async (callback) => {
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          const transactionQueryable: Queryable = {
+            query: (sql, params) => client.query(sql, params) as Promise<QueryResult<unknown>>,
+            exec: (sql) => executeStatements((statement) => client.query(statement), sql),
+          };
+          const result = await callback(transactionQueryable);
+          await client.query("COMMIT");
+          return result;
+        } catch (error) {
+          await client.query("ROLLBACK");
+          throw error;
+        } finally {
+          client.release();
+        }
+      },
+      async () => pool.end(),
+      "neon",
+    );
+  } else {
+    if (process.env.VERCEL_ENV === "production") {
+      throw new Error("DATABASE_URL is required in the Vercel production environment");
+    }
+    const { PGlite } = await import("@electric-sql/pglite");
+    const pglite = await PGlite.create(localDatabaseDirectory());
+    const queryable: Queryable = {
+      query: (sql, params) => pglite.query(sql, params) as Promise<QueryResult<unknown>>,
+      exec: (sql) => pglite.exec(sql),
+    };
+    database = new AppDatabase(
+      queryable,
+      (callback) => pglite.transaction((transaction) => callback({
+        query: (sql, params) => transaction.query(sql, params) as Promise<QueryResult<unknown>>,
+        exec: (sql) => transaction.exec(sql),
+      })),
+      async () => pglite.close(),
+      "pglite",
+    );
+  }
+
+  await initialize(database);
+  return database;
+}
+
+export function getDatabase() {
+  globalDatabase.__jipjigiDatabase ??= createDatabase();
+  return globalDatabase.__jipjigiDatabase;
+}
+
+export async function closeDatabase() {
+  if (!globalDatabase.__jipjigiDatabase) return;
+  const database = await globalDatabase.__jipjigiDatabase;
+  await database.close();
+  delete globalDatabase.__jipjigiDatabase;
+}
+
+export function configuredDatabaseStore() {
+  return process.env.DATABASE_URL ? "neon" as const : "pglite" as const;
+}
+
+async function initialize(database: AppDatabase) {
+  if (database.store === "neon") {
+    await database.transaction(async (transaction) => {
+      await transaction.query("SELECT pg_advisory_xact_lock(742719341)");
+      await initializeSchemaAndSeed(transaction);
+    });
     return;
   }
-  const demoEnabled = process.env.NODE_ENV !== "production" || process.env.ALLOW_DEMO_AUTH === "true";
-  if (!demoEnabled) return;
-
-  const insertSeed = db.transaction(() => {
-    const now = new Date().toISOString();
-    db.prepare(
-      `INSERT INTO users (id, email, name, password_hash, role, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("owner-1", "demo@jipjigi.kr", "김서준", bcrypt.hashSync("demo1234!", 10), "owner", now);
-
-    db.prepare(
-      `INSERT INTO buildings (id, owner_id, name, address, total_units, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("building-seongsu", "owner-1", "성수 리버하임", "서울 성동구 성수이로 88", 19, now);
-    db.prepare(
-      `INSERT INTO buildings (id, owner_id, name, address, total_units, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("building-mangwon", "owner-1", "망원 포레", "서울 마포구 희우정로 41", 8, now);
-
-    const seongsuUnits = [
-      "201", "202", "203", "301", "302", "303", "401", "402", "403", "501",
-      "502", "503", "601", "602", "701", "702", "801", "802", "901",
-    ];
-    const unitStatement = db.prepare(
-      `INSERT INTO units (id, building_id, name, floor, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    );
-    const leaseStatement = db.prepare(
-      `INSERT INTO leases (
-        id, unit_id, tenant_name, tenant_phone_masked, contact_consent,
-        start_date, end_date, deposit_amount, monthly_rent, status, renewal_status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
-    const chargeStatement = db.prepare(
-      `INSERT INTO charges (
-        id, lease_id, period, due_date, amount, status, paid_at, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
-
-    seongsuUnits.forEach((name, index) => {
-      const unitId = `unit-seongsu-${name}`;
-      const isVacant = name === "901";
-      unitStatement.run(unitId, "building-seongsu", `${name}호`, Number(name[0]), isVacant ? "vacant" : "occupied", now);
-      if (isVacant) return;
-
-      const leaseId = `lease-seongsu-${name}`;
-      const isRenewal = name === "501";
-      const isOverdue = name === "203";
-      leaseStatement.run(
-        leaseId,
-        unitId,
-        isRenewal ? "이민지" : isOverdue ? "박현우" : `임차인 ${index + 1}`,
-        "010-****-" + String(1200 + index).padStart(4, "0"),
-        1,
-        "2024-09-28",
-        isRenewal ? "2026-09-27" : "2027-02-28",
-        isRenewal ? 30_000_000 : 20_000_000,
-        isRenewal ? 1_250_000 : isOverdue ? 980_000 : 1_100_000,
-        "active",
-        isRenewal ? "attention" : "none",
-        now,
-      );
-      chargeStatement.run(
-        `charge-2026-08-${name}`,
-        leaseId,
-        "2026-08",
-        "2026-08-25",
-        isRenewal ? 1_250_000 : isOverdue ? 980_000 : 1_100_000,
-        isOverdue ? "overdue" : "paid",
-        isOverdue ? null : "2026-08-25T02:18:00.000Z",
-        now,
-      );
-    });
-
-    ["201", "202", "301", "302", "401", "501", "601", "701"].forEach((name, index) => {
-      const unitId = `unit-mangwon-${name}`;
-      const vacant = name === "701";
-      unitStatement.run(unitId, "building-mangwon", `${name}호`, Number(name[0]), vacant ? "vacant" : "occupied", now);
-      if (vacant) return;
-      leaseStatement.run(
-        `lease-mangwon-${name}`,
-        unitId,
-        `임차인 M${index + 1}`,
-        `010-****-${2200 + index}`,
-        1,
-        "2025-03-01",
-        "2027-02-28",
-        15_000_000,
-        870_000,
-        "active",
-        "none",
-        now,
-      );
-      chargeStatement.run(
-        `charge-mangwon-2026-08-${name}`,
-        `lease-mangwon-${name}`,
-        "2026-08",
-        "2026-08-25",
-        870_000,
-        "paid",
-        "2026-08-25T01:10:00.000Z",
-        now,
-      );
-    });
-
-    db.prepare(
-      `INSERT INTO maintenance_requests (
-        id, unit_id, title, description, priority, status, requested_at, scheduled_at, completed_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      "maintenance-302",
-      "unit-seongsu-302",
-      "욕실 수전에서 물이 새요",
-      "세면대 아래 연결부에서 물방울이 떨어집니다.",
-      "normal",
-      "received",
-      "2026-08-29T00:20:00.000Z",
-      null,
-      null,
-      now,
-    );
-
-    db.prepare(
-      `INSERT INTO notification_preferences (
-        user_id, rent_reminder, renewal_reminder, maintenance_updates, marketing,
-        quiet_hours_start, quiet_hours_end, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run("owner-1", 1, 1, 1, 0, "21:00", "08:00", now);
-
-    db.prepare(
-      `INSERT INTO experiment_assignments (id, user_id, experiment_key, variant, assigned_at)
-       VALUES (?, ?, ?, ?, ?)`,
-    ).run("experiment-owner-1", "owner-1", "home_briefing_priority_v1", "risk-first", now);
-
-    const audit = db.prepare(
-      `INSERT INTO audit_logs (id, user_id, action, entity_type, entity_id, metadata_json, occurred_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    );
-    audit.run("audit-seed-1", "owner-1", "rent_collected", "charge", "charge-2026-08-501", "{}", "2026-08-29T01:10:00.000Z");
-    audit.run("audit-seed-2", "owner-1", "maintenance_received", "maintenance", "maintenance-302", "{}", "2026-08-29T00:20:00.000Z");
-    audit.run("audit-seed-3", "owner-1", "lease_risk_detected", "lease", "lease-seongsu-501", "{}", "2026-08-28T23:00:00.000Z");
-  });
-
-  insertSeed();
-  seedDemoOperator(db);
+  await initializeSchemaAndSeed(database);
 }
 
-function initialize(db: Database.Database) {
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-  db.pragma("busy_timeout = 5000");
-  db.exec(`
+async function initializeSchemaAndSeed(database: AppDatabase) {
+  await database.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version INTEGER PRIMARY KEY,
       applied_at TEXT NOT NULL
@@ -352,8 +346,8 @@ function initialize(db: Database.Database) {
       anonymous_id TEXT NOT NULL,
       session_id TEXT NOT NULL,
       name TEXT NOT NULL CHECK(name IN ('CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB')),
-      value REAL NOT NULL CHECK(value >= 0),
-      delta REAL NOT NULL,
+      value DOUBLE PRECISION NOT NULL CHECK(value >= 0),
+      delta DOUBLE PRECISION NOT NULL,
       rating TEXT NOT NULL CHECK(rating IN ('good', 'needs-improvement', 'poor')),
       navigation_type TEXT NOT NULL,
       path TEXT NOT NULL,
@@ -373,32 +367,171 @@ function initialize(db: Database.Database) {
       occurred_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS audit_user_time_idx ON audit_logs(user_id, occurred_at DESC);
+    ALTER TABLE message_dispatches ADD COLUMN IF NOT EXISTS template_version TEXT NOT NULL DEFAULT 'v1';
+    ALTER TABLE message_dispatches ADD COLUMN IF NOT EXISTS consent_checked INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE message_dispatches ADD COLUMN IF NOT EXISTS retry_count INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE message_dispatches ADD COLUMN IF NOT EXISTS delivered_at TEXT;
+    ALTER TABLE product_events ADD COLUMN IF NOT EXISTS release_version TEXT NOT NULL DEFAULT 'legacy';
+    ALTER TABLE product_events ADD COLUMN IF NOT EXISTS experiment_key TEXT;
+    ALTER TABLE product_events ADD COLUMN IF NOT EXISTS variant TEXT;
+    ALTER TABLE product_events ADD COLUMN IF NOT EXISTS user_segment TEXT NOT NULL DEFAULT 'unknown';
   `);
 
-  const ensureColumn = (table: string, column: string, definition: string) => {
-    const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
-    if (!columns.some((item) => item.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-  };
-  ensureColumn("message_dispatches", "template_version", "TEXT NOT NULL DEFAULT 'v1'");
-  ensureColumn("message_dispatches", "consent_checked", "INTEGER NOT NULL DEFAULT 0");
-  ensureColumn("message_dispatches", "retry_count", "INTEGER NOT NULL DEFAULT 0");
-  ensureColumn("message_dispatches", "delivered_at", "TEXT");
-  ensureColumn("product_events", "release_version", "TEXT NOT NULL DEFAULT 'legacy'");
-  ensureColumn("product_events", "experiment_key", "TEXT");
-  ensureColumn("product_events", "variant", "TEXT");
-  ensureColumn("product_events", "user_segment", "TEXT NOT NULL DEFAULT 'unknown'");
-  db.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (1, ?)").run(new Date().toISOString());
-  db.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (2, ?)").run(new Date().toISOString());
-  db.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (3, ?)").run(new Date().toISOString());
-  seedDatabase(db);
+  const now = new Date().toISOString();
+  await database.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)").run(1, now);
+  await database.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)").run(2, now);
+  await database.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)").run(3, now);
+  await seedDatabase(database);
 }
 
-export function getDatabase() {
-  if (globalDatabase.__jipjigiDatabase) return globalDatabase.__jipjigiDatabase;
-  const file = databaseFile();
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  const db = new Database(file);
-  initialize(db);
-  globalDatabase.__jipjigiDatabase = db;
-  return db;
+async function seedDemoOperator(database: AppDatabase) {
+  const demoEnabled = process.env.NODE_ENV !== "production" || process.env.ALLOW_DEMO_AUTH === "true";
+  if (!demoEnabled) return;
+  const existing = await database.prepare("SELECT id FROM users WHERE id = ?").get<{ id: string }>("operator-1");
+  if (existing) return;
+  const now = new Date().toISOString();
+  await database.transaction(async (transaction) => {
+    await transaction.prepare(
+      `INSERT INTO users (id, email, name, password_hash, role, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("operator-1", "growth@jipjigi.kr", "집지기 운영자", bcrypt.hashSync("demo1234!", 10), "operator", now);
+    await transaction.prepare(
+      `INSERT INTO notification_preferences (
+        user_id, rent_reminder, renewal_reminder, maintenance_updates, marketing,
+        quiet_hours_start, quiet_hours_end, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run("operator-1", 0, 0, 0, 0, "21:00", "08:00", now);
+  });
+}
+
+async function seedDatabase(database: AppDatabase) {
+  const existing = await database.prepare("SELECT COUNT(*)::int AS count FROM users").get<{ count: number }>();
+  if ((existing?.count ?? 0) > 0) {
+    await seedDemoOperator(database);
+    return;
+  }
+  const demoEnabled = process.env.NODE_ENV !== "production" || process.env.ALLOW_DEMO_AUTH === "true";
+  if (!demoEnabled) return;
+
+  await database.transaction(async (transaction) => {
+    const now = new Date().toISOString();
+    await transaction.prepare(
+      `INSERT INTO users (id, email, name, password_hash, role, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("owner-1", "demo@jipjigi.kr", "김서준", bcrypt.hashSync("demo1234!", 10), "owner", now);
+    await transaction.prepare(
+      `INSERT INTO buildings (id, owner_id, name, address, total_units, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("building-seongsu", "owner-1", "성수 리버하임", "서울 성동구 성수이로 88", 19, now);
+    await transaction.prepare(
+      `INSERT INTO buildings (id, owner_id, name, address, total_units, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("building-mangwon", "owner-1", "망원 포레", "서울 마포구 희우정로 41", 8, now);
+
+    const seongsuUnits = [
+      "201", "202", "203", "301", "302", "303", "401", "402", "403", "501",
+      "502", "503", "601", "602", "701", "702", "801", "802", "901",
+    ];
+    for (const [index, name] of seongsuUnits.entries()) {
+      const unitId = `unit-seongsu-${name}`;
+      const isVacant = name === "901";
+      await transaction.prepare(
+        `INSERT INTO units (id, building_id, name, floor, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run(unitId, "building-seongsu", `${name}호`, Number(name[0]), isVacant ? "vacant" : "occupied", now);
+      if (isVacant) continue;
+
+      const leaseId = `lease-seongsu-${name}`;
+      const isRenewal = name === "501";
+      const isOverdue = name === "203";
+      await transaction.prepare(
+        `INSERT INTO leases (
+          id, unit_id, tenant_name, tenant_phone_masked, contact_consent,
+          start_date, end_date, deposit_amount, monthly_rent, status, renewal_status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        leaseId,
+        unitId,
+        isRenewal ? "이민지" : isOverdue ? "박현우" : `임차인 ${index + 1}`,
+        `010-****-${String(1200 + index).padStart(4, "0")}`,
+        1,
+        "2024-09-28",
+        isRenewal ? "2026-09-27" : "2027-02-28",
+        isRenewal ? 30_000_000 : 20_000_000,
+        isRenewal ? 1_250_000 : isOverdue ? 980_000 : 1_100_000,
+        "active",
+        isRenewal ? "attention" : "none",
+        now,
+      );
+      await transaction.prepare(
+        `INSERT INTO charges (id, lease_id, period, due_date, amount, status, paid_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        `charge-2026-08-${name}`,
+        leaseId,
+        "2026-08",
+        "2026-08-25",
+        isRenewal ? 1_250_000 : isOverdue ? 980_000 : 1_100_000,
+        isOverdue ? "overdue" : "paid",
+        isOverdue ? null : "2026-08-25T02:18:00.000Z",
+        now,
+      );
+    }
+
+    for (const [index, name] of ["201", "202", "301", "302", "401", "501", "601", "701"].entries()) {
+      const unitId = `unit-mangwon-${name}`;
+      const vacant = name === "701";
+      await transaction.prepare(
+        `INSERT INTO units (id, building_id, name, floor, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run(unitId, "building-mangwon", `${name}호`, Number(name[0]), vacant ? "vacant" : "occupied", now);
+      if (vacant) continue;
+      await transaction.prepare(
+        `INSERT INTO leases (
+          id, unit_id, tenant_name, tenant_phone_masked, contact_consent,
+          start_date, end_date, deposit_amount, monthly_rent, status, renewal_status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        `lease-mangwon-${name}`, unitId, `임차인 M${index + 1}`, `010-****-${2200 + index}`, 1,
+        "2025-03-01", "2027-02-28", 15_000_000, 870_000, "active", "none", now,
+      );
+      await transaction.prepare(
+        `INSERT INTO charges (id, lease_id, period, due_date, amount, status, paid_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        `charge-mangwon-2026-08-${name}`, `lease-mangwon-${name}`, "2026-08", "2026-08-25",
+        870_000, "paid", "2026-08-25T01:10:00.000Z", now,
+      );
+    }
+
+    await transaction.prepare(
+      `INSERT INTO maintenance_requests (
+        id, unit_id, title, description, priority, status, requested_at, scheduled_at, completed_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      "maintenance-302", "unit-seongsu-302", "욕실 수전에서 물이 새요",
+      "세면대 아래 연결부에서 물방울이 떨어집니다.", "normal", "received",
+      "2026-08-29T00:20:00.000Z", null, null, now,
+    );
+    await transaction.prepare(
+      `INSERT INTO notification_preferences (
+        user_id, rent_reminder, renewal_reminder, maintenance_updates, marketing,
+        quiet_hours_start, quiet_hours_end, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run("owner-1", 1, 1, 1, 0, "21:00", "08:00", now);
+    await transaction.prepare(
+      `INSERT INTO experiment_assignments (id, user_id, experiment_key, variant, assigned_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run("experiment-owner-1", "owner-1", "home_briefing_priority_v1", "risk-first", now);
+
+    const audit = transaction.prepare(
+      `INSERT INTO audit_logs (id, user_id, action, entity_type, entity_id, metadata_json, occurred_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    );
+    await audit.run("audit-seed-1", "owner-1", "rent_collected", "charge", "charge-2026-08-501", "{}", "2026-08-29T01:10:00.000Z");
+    await audit.run("audit-seed-2", "owner-1", "maintenance_received", "maintenance", "maintenance-302", "{}", "2026-08-29T00:20:00.000Z");
+    await audit.run("audit-seed-3", "owner-1", "lease_risk_detected", "lease", "lease-seongsu-501", "{}", "2026-08-28T23:00:00.000Z");
+  });
+
+  await seedDemoOperator(database);
 }

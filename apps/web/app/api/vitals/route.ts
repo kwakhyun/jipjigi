@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       );
     }
     const session = await sessionFromRequest(request);
-    recordWebVital(await request.json(), session?.userId ?? null);
+    await recordWebVital(await request.json(), session?.userId ?? null);
     logger.info("performance.vital.received", {
       requestId,
       durationMs: Math.round(performance.now() - startedAt),

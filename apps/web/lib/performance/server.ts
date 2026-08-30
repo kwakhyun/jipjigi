@@ -3,12 +3,13 @@ import "server-only";
 import { WebVitalPayloadSchema } from "@/lib/performance/schema";
 import { getDatabase } from "@/lib/db/client";
 
-export function recordWebVital(input: unknown, userId: string | null) {
+export async function recordWebVital(input: unknown, userId: string | null) {
   const metric = WebVitalPayloadSchema.parse(input);
   const occurredAt = new Date(metric.occurredAt);
   if (occurredAt.getTime() > Date.now() + 5 * 60_000) throw new Error("METRIC_TIME_IN_FUTURE");
 
-  getDatabase()
+  const database = await getDatabase();
+  await database
     .prepare(
       `INSERT OR IGNORE INTO web_vitals (
         id, metric_id, user_id, anonymous_id, session_id, name, value, delta,

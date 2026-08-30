@@ -9,9 +9,11 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const user = await requireOwner();
-  const buildings = listBuildings(user.id);
-  const snapshot = getDashboardSnapshot(user.id, buildings[0]?.id);
-  const variant = getOrCreateExperimentAssignment(user.id);
+  const buildings = await listBuildings(user.id);
+  const [snapshot, variant] = await Promise.all([
+    getDashboardSnapshot(user.id, buildings[0]?.id),
+    getOrCreateExperimentAssignment(user.id),
+  ]);
   return (
     <Providers>
       <DashboardView initial={{ data: snapshot, experiment: { key: "home_briefing_priority_v1", variant } }} buildings={buildings} userName={user.name} />

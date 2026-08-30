@@ -7,6 +7,7 @@ import { rateLimit, rateLimitStore } from "./request";
 describe("rateLimit", () => {
   const previousUrl = process.env.UPSTASH_REDIS_REST_URL;
   const previousToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const previousVercelEnvironment = process.env.VERCEL_ENV;
 
   beforeEach(() => {
     delete process.env.UPSTASH_REDIS_REST_URL;
@@ -19,6 +20,8 @@ describe("rateLimit", () => {
     else process.env.UPSTASH_REDIS_REST_URL = previousUrl;
     if (previousToken === undefined) delete process.env.UPSTASH_REDIS_REST_TOKEN;
     else process.env.UPSTASH_REDIS_REST_TOKEN = previousToken;
+    if (previousVercelEnvironment === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previousVercelEnvironment;
   });
 
   it("로컬 저장소에서 한도를 적용하고 윈도우가 지나면 복구한다", async () => {
@@ -39,5 +42,16 @@ describe("rateLimit", () => {
     process.env.UPSTASH_REDIS_REST_TOKEN = "test-token";
 
     expect(rateLimitStore()).toBe("redis");
+  });
+
+  it("운영 환경에 Redis가 없으면 요청을 허용하지 않는다", async () => {
+    process.env.VERCEL_ENV = "production";
+
+    expect(rateLimitStore()).toBe("unavailable");
+    expect(await rateLimit(`production:${crypto.randomUUID()}`, 2, 1_000)).toMatchObject({
+      allowed: false,
+      remaining: 0,
+      store: "unavailable",
+    });
   });
 });
