@@ -17,17 +17,17 @@ async function sendTarget(target: Target): Promise<MessageDispatchOperationResul
   return result;
 }
 
-export function MessagesView({ initialMessages, contracts, charges }: { initialMessages: MessageRow[]; contracts: ContractRow[]; charges: LedgerRow[] }) {
+export function MessagesView({ initialMessages, contracts, charges, initialTargetId, quietHours }: { initialMessages: MessageRow[]; contracts: ContractRow[]; charges: LedgerRow[]; initialTargetId?: string | undefined; quietHours: { start: string; end: string } }) {
   const targets = useMemo<Target[]>(() => [
     ...charges.filter((charge) => charge.status === "overdue").map((charge) => ({ kind: "charge" as const, id: charge.id, label: `${charge.unitName} 미납 안내`, recipient: charge.tenantName, template: `${charge.tenantName}님, ${charge.unitName}의 이번 달 임대료 입금 내역이 아직 확인되지 않아 안내드립니다. 이미 납부하셨다면 별도로 답변하지 않으셔도 됩니다.` })),
     ...contracts.filter((contract) => contract.renewalStatus === "attention").map((contract) => ({ kind: "lease" as const, id: contract.id, label: `${contract.unitName} 갱신 의사 확인`, recipient: contract.tenantName, template: `${contract.tenantName}님, 계약 만료일이 다가와 갱신 의사를 여쭙습니다. 편하실 때 답변 부탁드립니다.` })),
   ], [charges, contracts]);
-  const [selectedId, setSelectedId] = useState(targets[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState(() => initialTargetId ?? targets[0]?.id ?? "");
   const [messages, setMessages] = useState(initialMessages);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [toast, showToast] = useTransientMessage(3_000);
-  const selected = targets.find((target) => target.id === selectedId) ?? targets[0];
+  const selected = targets.find((target) => target.id === selectedId);
 
   const send = () => {
     if (!selected) return;
@@ -89,6 +89,7 @@ export function MessagesView({ initialMessages, contracts, charges }: { initialM
           <div className="composer-heading"><div><span className="section-kicker" aria-hidden="true">샌드박스 채널</span><h2 id="composer-title">안전한 메시지 보내기</h2></div><span className="sandbox-badge">테스트 채널</span></div>
           <label className="field-label" htmlFor="message-target">대상과 목적</label>
           <select className="text-input select-input" id="message-target" value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
+            {!selected ? <option value={selectedId} disabled>발송 가능한 대상을 선택해 주세요</option> : null}
             {targets.map((target) => <option key={target.id} value={target.id}>{target.label}</option>)}
           </select>
           {selected ? (
@@ -98,14 +99,14 @@ export function MessagesView({ initialMessages, contracts, charges }: { initialM
               <p>{selected.template}</p>
               <small>안내 수신을 원하지 않으면 메시지의 문의 경로에서 요청할 수 있습니다.</small>
             </div>
-          ) : <div className="empty-state"><CheckCircledIcon /><strong>지금 보낼 메시지가 없어요.</strong></div>}
+          ) : <div className="empty-state"><CheckCircledIcon /><strong>선택한 대상에 보낼 메시지가 없어요.</strong><span>이미 접수했거나 상태가 바뀌었을 수 있어요. 발송함을 확인하거나 다른 대상을 선택해 주세요.</span></div>}
           <div className="guardrail-checklist" aria-label="발송 전 자동 점검">
             <span><CheckCircledIcon /> 수신 동의 확인</span>
-            <span><ClockIcon /> 오후 9시부터 오전 8시까지 예약</span>
+            <span><ClockIcon /> 발송 제한 {quietHours.start}~{quietHours.end} (한국 시간)</span>
             <span><LockClosedIcon /> 갱신은 24시간 1회, 미납은 청구월 1회</span>
           </div>
           <button className="button button-primary button-wide" type="button" disabled={!selected || isPending} onClick={send}><PaperPlaneIcon /> {isPending ? "발송 조건 확인 중…" : "발송 조건 확인 후 접수"}</button>
-          <p className="sandbox-disclaimer"><InfoCircledIcon /> 이 포트폴리오 환경에서는 실제 알림톡을 보내지 않습니다. 실제 서비스에서는 공급자 연동만 교체해 같은 계약과 상태 데이터를 사용할 수 있습니다.</p>
+          <p className="sandbox-disclaimer"><InfoCircledIcon /> 실제 알림톡은 발송하지 않습니다. 예약은 시각과 상태 저장까지만 제공하며 자동 발송은 실행되지 않습니다. 실제 운영에는 공급자 연동과 예약 처리 워커가 필요합니다.</p>
         </section>
         <section className="surface-card outbox-card" aria-labelledby="outbox-title">
           <div className="data-section-header"><div><h2 id="outbox-title">발송함</h2><p>접수, 예약, 전달 결과를 한곳에서 확인합니다.</p></div><span className="count-badge">{messages.length}</span></div>

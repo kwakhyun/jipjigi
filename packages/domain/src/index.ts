@@ -92,6 +92,7 @@ export type RiskBriefing = {
 
 export type DashboardSnapshot = {
   generatedAt: string;
+  hasMutedBriefings: boolean;
   building: BuildingSummary;
   metrics: {
     collectionRate: number;

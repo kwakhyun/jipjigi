@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -35,9 +35,11 @@ describe("SettingsForm", () => {
     render(<SettingsForm initial={initial} />);
 
     await user.click(screen.getByRole("switch", { name: /제품 소식과 혜택/ }));
+    fireEvent.change(screen.getByLabelText("시작"), { target: { value: "22:00" } });
+    fireEvent.change(screen.getByLabelText("종료"), { target: { value: "09:00" } });
     await user.click(screen.getByRole("button", { name: "변경 사항 저장" }));
 
-    expect(savePreferencesAction).toHaveBeenCalledWith({ ...initial, marketing: true });
+    expect(savePreferencesAction).toHaveBeenCalledWith({ ...initial, marketing: true, quietHoursStart: "22:00", quietHoursEnd: "09:00" });
     expect((await screen.findByRole("status")).textContent).toContain("변경 사항을 저장했어요.");
   });
 

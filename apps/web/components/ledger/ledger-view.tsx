@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useMemo, useState, useTransition } from "react";
 import { CheckCircledIcon, ExclamationTriangleIcon, PaperPlaneIcon } from "@radix-ui/react-icons";
 import { formatWon } from "@jipjigi/domain/format";
@@ -29,18 +31,13 @@ export function LedgerView({ initialRows }: { initialRows: LedgerRow[] }) {
     { expected: 0, collected: 0, overdue: 0, overdueCount: 0 },
   ), [rows]);
 
-  const run = (row: LedgerRow, type: "mark_payment" | "send_overdue_notice") => {
+  const run = (row: LedgerRow) => {
     setPendingId(row.id);
     startTransition(async () => {
       try {
-        if (type === "mark_payment") {
-          await submitOperation({ type: "mark_payment", chargeId: row.id });
-          setRows((current) => current.map((item) => item.id === row.id ? { ...item, status: "paid", paidAt: new Date().toISOString() } : item));
-          showToast(`${row.unitName}의 입금을 확인하고 납부 완료로 반영했어요.`);
-        } else {
-          const result = await submitOperation({ type: "send_overdue_notice", chargeId: row.id });
-          showToast("id" in result && result.status === "blocked" ? `${row.unitName}은 발송 조건을 충족하지 못해 안내를 차단했어요.` : "duplicate" in result && result.duplicate ? `${row.unitName}에는 이번 청구월 안내가 이미 접수돼 있어요.` : `${row.unitName} 미납 안내를 접수했어요.`);
-        }
+        await submitOperation({ type: "mark_payment", chargeId: row.id });
+        setRows((current) => current.map((item) => item.id === row.id ? { ...item, status: "paid", paidAt: new Date().toISOString() } : item));
+        showToast(`${row.unitName}의 입금을 확인하고 납부 완료로 반영했어요.`);
       } catch (error) {
         showToast(error instanceof Error ? error.message : "작업을 처리하지 못했습니다.");
       } finally {
@@ -81,8 +78,8 @@ export function LedgerView({ initialRows }: { initialRows: LedgerRow[] }) {
                   <td className="action-cell">
                     {row.status === "overdue" ? (
                       <div className="row-actions">
-                        <button className="button button-quiet button-small" type="button" disabled={isPending} onClick={() => run(row, "send_overdue_notice")}><PaperPlaneIcon /> {pendingId === row.id && isPending ? "접수 중…" : "미납 안내"}</button>
-                        <button className="button button-secondary button-small" type="button" disabled={isPending} onClick={() => run(row, "mark_payment")}>{pendingId === row.id && isPending ? "확인 중…" : "입금 확인"}</button>
+                        <Link className="button button-quiet button-small" href={`/app/messages?target=${encodeURIComponent(row.id)}`}><PaperPlaneIcon /> 미납 안내 확인</Link>
+                        <button className="button button-secondary button-small" type="button" disabled={isPending} onClick={() => run(row)}>{pendingId === row.id && isPending ? "확인 중…" : "입금 확인"}</button>
                       </div>
                     ) : <span className="muted-caption">{row.paidAt ? formatDate(row.paidAt) : "-"}</span>}
                   </td>

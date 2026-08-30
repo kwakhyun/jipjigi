@@ -2,10 +2,12 @@
 
 import bcrypt from "bcryptjs";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { redirect, RedirectType } from "next/navigation";
 import { z } from "zod";
 import { getUserByEmail } from "@/lib/data/repository";
-import { setSessionCookie } from "@/lib/auth/session";
+import { clearSessionCookie, setSessionCookie } from "@/lib/auth/session";
+import { postLoginPath } from "@/lib/auth/navigation";
 import { rateLimit } from "@/lib/security/request";
 
 const INVALID_PASSWORD_HASH = "$2b$10$DeJG5bLgtjnZUZjIwiEzc.BVI2AJ70GX2IPesuIlqbTMW6pbT5zV.";
@@ -39,9 +41,15 @@ export async function loginAction(_state: LoginState, formData: FormData): Promi
   if (!user || !valid) return { error: "이메일 또는 비밀번호가 올바르지 않습니다.", fields: { email: parsed.data.email } };
 
   await setSessionCookie({ userId: user.id, name: user.name, role: user.role });
-  const requestedPath = parsed.data.next;
-  const nextPath = user.role === "operator"
-    ? requestedPath === "/app/settings" || requestedPath === "/app/growth" ? requestedPath : "/app/growth"
-    : requestedPath === "/app/growth" || !(requestedPath === "/app" || requestedPath?.startsWith("/app/")) ? "/app" : requestedPath;
-  redirect(nextPath);
+  revalidatePath("/app", "layout");
+  redirect(postLoginPath(user.role, parsed.data.next), RedirectType.replace);
+}
+
+export async function logoutAction(formData: FormData) {
+  await clearSessionCookie();
+  revalidatePath("/app", "layout");
+  const mode = formData.get("mode");
+  const demoEnabled = process.env.NODE_ENV !== "production" || process.env.ALLOW_DEMO_AUTH === "true";
+  const destination = demoEnabled && (mode === "owner" || mode === "operator") ? `/login?mode=${mode}` : "/login";
+  redirect(destination, RedirectType.replace);
 }

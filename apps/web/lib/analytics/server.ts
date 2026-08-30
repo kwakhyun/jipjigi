@@ -1,7 +1,8 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { ProductEventSchema, sanitizeProperties, type EventName } from "@jipjigi/analytics";
+import { BrowserEventNameSchema, ProductEventSchema, sanitizeProperties, type EventName } from "@jipjigi/analytics";
+import { briefingPriorityExperiment } from "@jipjigi/experiments";
 import { getDatabase } from "@/lib/db/client";
 
 function releaseVersion() {
@@ -15,9 +16,21 @@ export async function recordProductEvent(input: unknown, userId: string | null) 
 
   const db = await getDatabase();
   const assignment = userId
-    ? await db.prepare("SELECT experiment_key AS experimentKey, variant FROM experiment_assignments WHERE user_id = ? ORDER BY assigned_at DESC LIMIT 1").get<{ experimentKey: string; variant: string }>(userId)
+    ? await db.prepare("SELECT experiment_key AS experimentKey, variant FROM experiment_assignments WHERE user_id = ? AND experiment_key = ?").get<{ experimentKey: string; variant: string }>(userId, briefingPriorityExperiment.key)
     : undefined;
   const user = userId ? await db.prepare("SELECT role FROM users WHERE id = ?").get<{ role: string }>(userId) : undefined;
+  if (userId && !user) throw new Error("EVENT_USER_NOT_FOUND");
+  if (event.name === "experiment_exposed" && (!assignment || user?.role !== "owner")) {
+    throw new Error("EVENT_ASSIGNMENT_REQUIRED");
+  }
+  const properties = sanitizeProperties(event.properties);
+  // The browser is not an authority for either the envelope or its duplicated properties.
+  delete properties.experiment_key;
+  delete properties.variant;
+  if (event.name === "experiment_exposed" && assignment) {
+    properties.experiment_key = assignment.experimentKey;
+    properties.variant = assignment.variant;
+  }
 
   await db
     .prepare(
@@ -33,14 +46,22 @@ export async function recordProductEvent(input: unknown, userId: string | null) 
       event.sessionId,
       event.name,
       event.path,
-      JSON.stringify(sanitizeProperties(event.properties)),
+      JSON.stringify(properties),
       releaseVersion(),
-      event.context.experimentKey ?? assignment?.experimentKey ?? null,
-      event.context.variant ?? assignment?.variant ?? null,
-      user?.role ?? event.context.userSegment,
+      assignment?.experimentKey ?? null,
+      assignment?.variant ?? null,
+      user?.role ?? "anonymous",
       event.occurredAt,
       new Date().toISOString(),
     );
+}
+
+export async function recordBrowserProductEvent(input: unknown, userId: string | null) {
+  const event = ProductEventSchema.parse(input);
+  BrowserEventNameSchema.parse(event.name);
+  if (!userId && event.name !== "seo_cta_clicked") throw new Error("EVENT_AUTH_REQUIRED");
+  if (Date.parse(event.occurredAt) < Date.now() - 24 * 60 * 60_000) throw new Error("EVENT_TOO_OLD");
+  await recordProductEvent(event, userId);
 }
 
 export async function recordServerProductEvent(
@@ -49,11 +70,6 @@ export async function recordServerProductEvent(
   path: string,
   properties: Record<string, string | number | boolean | null> = {},
 ) {
-  const db = await getDatabase();
-  const assignment = await db
-    .prepare("SELECT experiment_key AS experimentKey, variant FROM experiment_assignments WHERE user_id = ? ORDER BY assigned_at DESC LIMIT 1")
-    .get<{ experimentKey: string; variant: string }>(userId);
-  const user = await db.prepare("SELECT role FROM users WHERE id = ?").get<{ role: string }>(userId);
   const eventId = randomUUID();
   await recordProductEvent({
     eventId,
@@ -64,9 +80,9 @@ export async function recordServerProductEvent(
     occurredAt: new Date().toISOString(),
     context: {
       releaseVersion: releaseVersion(),
-      experimentKey: assignment?.experimentKey ?? null,
-      variant: assignment?.variant ?? null,
-      userSegment: user?.role ?? "unknown",
+      experimentKey: null,
+      variant: null,
+      userSegment: "unknown",
     },
     properties,
   }, userId);

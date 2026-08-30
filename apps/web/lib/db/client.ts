@@ -138,7 +138,9 @@ async function createDatabase() {
       throw new Error("DATABASE_URL is required in the Vercel production environment");
     }
     const { PGlite } = await import("@electric-sql/pglite");
-    const pglite = await PGlite.create(localDatabaseDirectory());
+    // Integration tests still execute PostgreSQL, without repeated disk fsyncs.
+    // Development remains file-backed; production still requires Neon above.
+    const pglite = await PGlite.create(process.env.NODE_ENV === "test" ? undefined : localDatabaseDirectory());
     const queryable: Queryable = {
       query: (sql, params) => pglite.query(sql, params) as Promise<QueryResult<unknown>>,
       exec: (sql) => pglite.exec(sql),

@@ -1,51 +1,21 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
+import { useMemo, useState } from "react";
 import { CalendarIcon, CheckCircledIcon, InfoCircledIcon, PaperPlaneIcon } from "@radix-ui/react-icons";
 import { formatWon } from "@jipjigi/domain/format";
 import type { ContractRow, ContractTimelineEvent } from "@/lib/data/repository";
 import { daysUntilDate } from "@/lib/format/date";
-import { useTransientMessage } from "@/lib/hooks/use-transient-message";
-import { submitOperation } from "@/lib/operations/client";
 
 export function ContractsView({ initialContracts, referenceTime }: { initialContracts: ContractRow[]; referenceTime: string }) {
-  const [contracts, setContracts] = useState(initialContracts);
+  const contracts = initialContracts;
   const [query, setQuery] = useState("");
-  const [pendingId, setPendingId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-  const [toast, showToast] = useTransientMessage();
   const visible = useMemo(() => contracts.filter((contract) => `${contract.unitName}${contract.tenantName}${contract.buildingName}`.includes(query.trim())), [contracts, query]);
   const attentionCount = contracts.filter((contract) => ["attention", "requested"].includes(contract.renewalStatus)).length;
   const closestEndDate = contracts.reduce<string | undefined>(
     (closest, contract) => !closest || contract.endDate < closest ? contract.endDate : closest,
     undefined,
   );
-
-  const send = (contract: ContractRow) => {
-    setPendingId(contract.id);
-    startTransition(async () => {
-      try {
-        const result = await submitOperation({ type: "start_renewal", leaseId: contract.id });
-        if (!("id" in result)) throw new Error("갱신 요청 결과를 확인하지 못했습니다.");
-        setContracts((current) => current.map((item) => item.id === contract.id ? {
-          ...item,
-          renewalStatus: result.status === "blocked" ? item.renewalStatus : "requested",
-          timeline: result.duplicate ? item.timeline : [{
-            id: result.id,
-            kind: "message" as const,
-            status: result.status,
-            occurredAt: new Date().toISOString(),
-            retryCount: result.retryCount,
-          }, ...item.timeline],
-        } : item));
-        showToast(result.status === "blocked" ? "발송 조건을 충족하지 못해 요청을 차단했어요." : result.duplicate ? "최근 24시간 안에 접수한 요청이 있어 기존 기록을 보여드려요." : `${contract.unitName} 임차인에게 갱신 의사 확인을 요청했어요.`);
-      } catch (error) {
-        showToast(error instanceof Error ? error.message : "요청을 처리하지 못했습니다.");
-      } finally {
-        setPendingId(null);
-      }
-    });
-  };
 
   return (
     <>
@@ -65,7 +35,7 @@ export function ContractsView({ initialContracts, referenceTime }: { initialCont
               <div className="contract-terms"><span>계약 기간<strong>{formatRange(contract.startDate, contract.endDate)}</strong></span><span>보증금 / 월세<strong>{formatWon(contract.depositAmount)} / {formatWon(contract.monthlyRent)}</strong></span></div>
               <div className="contract-action">
                 <RenewalStatus status={contract.renewalStatus} />
-                {contract.renewalStatus === "attention" ? <button className="button button-primary button-small" type="button" onClick={() => send(contract)} disabled={isPending}><PaperPlaneIcon /> {pendingId === contract.id ? "확인 중…" : "갱신 의사 확인"}</button> : null}
+                {contract.renewalStatus === "attention" ? <Link className="button button-primary button-small" href={`/app/messages?target=${encodeURIComponent(contract.id)}`}><PaperPlaneIcon /> 갱신 안내 확인</Link> : null}
               </div>
               {contract.timeline.length ? <ContractTimeline events={contract.timeline} /> : null}
             </article>
@@ -73,7 +43,6 @@ export function ContractsView({ initialContracts, referenceTime }: { initialCont
         </div>
         <div className="privacy-note"><InfoCircledIcon /><span>계약 정보는 건물 소유 여부를 확인한 뒤 표시합니다. 행동 기록에는 이름과 연락처를 남기지 않습니다.</span></div>
       </section>
-      {toast ? <div className="toast" role="status">{toast}</div> : null}
     </>
   );
 }

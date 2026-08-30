@@ -1,6 +1,6 @@
 "use client";
 
-import type { EventName } from "@jipjigi/analytics";
+import type { BrowserEventName } from "@jipjigi/analytics";
 
 const ANONYMOUS_KEY = "jipjigi:v1:anonymous-id";
 const SESSION_KEY = "jipjigi:v1:session-id";
@@ -21,7 +21,7 @@ export function getAnalyticsIdentity() {
 }
 
 export function track(
-  name: EventName,
+  name: BrowserEventName,
   properties: Record<string, string | number | boolean | null> = {},
   path = window.location.pathname,
   experiment: { experimentKey: string; variant: string } | null = null,

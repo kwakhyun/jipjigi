@@ -1,5 +1,7 @@
 # 집지기 프로덕션 디자인 QA
 
+이 문서는 최초 모바일 디자인 비교와 브랜드 변경 당시의 기록입니다. 이후 랜딩 히어로와 데모 계정 전환 UI가 변경되었습니다. 현재 변경의 검증 범위는 [최신 개선 기록](docs/audits/2026-08-31-trust-and-consistency.md)을 확인하세요.
+
 ## 비교 기준
 
 - 선택 시안: `prototype/.design-qa/source-home-normalized.png`

@@ -52,9 +52,10 @@ export default async function GrowthPage() {
         <div className="data-section-header"><div><span className="section-kicker" aria-hidden="true">CRM 안전 지표</span><h2 id="crm-guardrail-title">전달 성과와 사용자 통제권</h2><p>메시지 성과는 전달률뿐 아니라 수신 해제율과 차단률을 함께 판단합니다.</p></div></div>
         <div className="crm-guardrail-grid">
           <GrowthRate label="전달률" value={formatRate(overview.crmGuardrails.deliveryRate)} detail="공급자 전달 완료 / 전달 시도" />
-          <GrowthRate label="7일 수신 해제율" value={formatRate(overview.crmGuardrails.optOutRate)} detail={`${overview.crmGuardrails.optOuts}명 해제 / ${overview.crmGuardrails.deliveredRecipients}명 전달`} />
+          <GrowthRate label="전달 후 수신 해제율" value={formatRate(overview.crmGuardrails.optOutRate)} detail={`${overview.crmGuardrails.optOuts}건 해제 / ${overview.crmGuardrails.deliveredRecipients}건 전달 계약`} />
           <GrowthRate label="발송 차단률" value={formatRate(overview.crmGuardrails.blockedRate)} detail="수신 동의와 발송 횟수 제한" />
         </div>
+        <p className="rum-footnote">최근 7일에 전달된 계약 중 같은 채널에서 전달 이후 7일 이내 수신 해제한 계약의 비율입니다. 관찰 기간이 끝나지 않은 계약도 포함하는 잠정 지표이며 사람 수를 뜻하지 않습니다.</p>
       </section>
       <section className="surface-card rum-card" aria-labelledby="rum-title">
         <div className="data-section-header">

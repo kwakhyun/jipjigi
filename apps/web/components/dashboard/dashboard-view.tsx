@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, type ReactNode } from "react";
 import { useAtom } from "jotai";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   CalendarIcon,
   CheckCircledIcon,
@@ -20,8 +20,6 @@ import {
 import type { DashboardSnapshot } from "@jipjigi/domain";
 import { formatCompactWon, formatWon } from "@jipjigi/domain/format";
 import type { BriefingVariant } from "@jipjigi/experiments";
-import { useTransientMessage } from "@/lib/hooks/use-transient-message";
-import { submitOperation } from "@/lib/operations/client";
 import { selectedBuildingIdAtom } from "@/lib/state/workspace";
 import { track } from "@/lib/analytics/client";
 
@@ -40,8 +38,6 @@ async function getBriefing(buildingId: string): Promise<BriefingResponse> {
 
 export function DashboardView({ initial, buildings, userName }: { initial: BriefingResponse; buildings: Building[]; userName: string }) {
   const [selectedBuildingId, setSelectedBuildingId] = useAtom(selectedBuildingIdAtom);
-  const [toast, showToast] = useTransientMessage();
-  const queryClient = useQueryClient();
   const activeBuildingId = selectedBuildingId ?? initial.data.building.id;
 
   const briefing = useQuery({
@@ -77,20 +73,6 @@ export function DashboardView({ initial, buildings, userName }: { initial: Brief
     });
   }, [exposedRisk?.id, exposedRisk?.type, value.experiment.key, value.experiment.variant]);
 
-  const operation = useMutation({
-    mutationFn: submitOperation,
-    onSuccess: async (result, variables) => {
-      await queryClient.invalidateQueries({ queryKey: ["briefing"] });
-      const messageResult = "id" in result ? result : null;
-      if (variables.type === "start_renewal") {
-        showToast(messageResult?.status === "blocked" ? "발송 조건을 충족하지 못해 갱신 요청을 차단했어요." : messageResult?.duplicate ? "최근 24시간 안에 접수한 갱신 요청이 있어요." : "갱신 의사 확인 요청을 접수했어요.");
-      } else if (variables.type === "send_overdue_notice") {
-        showToast(messageResult?.status === "blocked" ? "발송 조건을 충족하지 못해 미납 안내를 차단했어요." : messageResult?.duplicate ? "이번 청구월의 미납 안내가 이미 접수돼 있어요." : "발송 제한을 확인하고 미납 안내를 접수했어요.");
-      }
-    },
-    onError: (error) => showToast(error instanceof Error ? error.message : "작업을 처리하지 못했습니다."),
-  });
-
   const snapshot = value.data;
   const greetingName = /^[가-힣]{3}$/.test(userName) ? userName.slice(1) : userName;
   const attentionItems = [snapshot.briefing.renewal, snapshot.briefing.overdue, snapshot.briefing.maintenance].filter((item) => item !== null);
@@ -99,8 +81,6 @@ export function DashboardView({ initial, buildings, userName }: { initial: Brief
     <RenewalPriority
       key="renewal"
       renewal={snapshot.briefing.renewal}
-      pending={operation.isPending}
-      onStart={() => operation.mutate({ type: "start_renewal", leaseId: snapshot.briefing.renewal?.leaseId ?? "" })}
       onEvidence={() => track("risk_evidence_opened", {
         lease_id: snapshot.briefing.renewal?.leaseId ?? "",
         risk_type: "lease_expiring",
@@ -113,8 +93,7 @@ export function DashboardView({ initial, buildings, userName }: { initial: Brief
       key="agenda"
       overdue={snapshot.briefing.overdue}
       maintenance={snapshot.briefing.maintenance}
-      pending={operation.isPending}
-      onOverdue={() => operation.mutate({ type: "send_overdue_notice", chargeId: snapshot.briefing.overdue?.chargeId ?? "" })}
+      hasMutedBriefings={snapshot.hasMutedBriefings}
     />
   );
   const briefings: ReactNode[] = value.experiment.variant === "risk-first" ? [renewalSection, agendaSection] : [agendaSection, renewalSection];
@@ -147,7 +126,7 @@ export function DashboardView({ initial, buildings, userName }: { initial: Brief
           <div className="hero-summary-copy">
             <span>오늘의 운영 브리핑</span>
             <strong>확인이 필요한 일 {attentionItems.length}건</strong>
-            <p><CheckCircledIcon width={18} height={18} aria-hidden="true" /> 나머지 {Math.max(snapshot.building.occupiedUnits - affectedUnitCount, 0)}세대는 특이 사항 없이 운영 중이에요</p>
+            <p><CheckCircledIcon width={18} height={18} aria-hidden="true" /> {snapshot.hasMutedBriefings ? "설정에서 선택한 항목만 표시하고 있어요" : `나머지 ${Math.max(snapshot.building.occupiedUnits - affectedUnitCount, 0)}세대는 특이 사항 없이 운영 중이에요`}</p>
           </div>
         </div>
       </section>
@@ -177,7 +156,6 @@ export function DashboardView({ initial, buildings, userName }: { initial: Brief
           </ol>
         </aside>
       </div>
-      {toast ? <div className="toast" role="status">{toast}</div> : null}
     </div>
   );
 }
@@ -186,7 +164,7 @@ function Metric({ label, value, detail, tone }: { label: string; value: string; 
   return <article className={`metric-item metric-${tone}`}><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>;
 }
 
-function RenewalPriority({ renewal, pending, onStart, onEvidence }: { renewal: NonNullable<DashboardSnapshot["briefing"]["renewal"]>; pending: boolean; onStart: () => void; onEvidence: () => void }) {
+function RenewalPriority({ renewal, onEvidence }: { renewal: NonNullable<DashboardSnapshot["briefing"]["renewal"]>; onEvidence: () => void }) {
   return (
     <section className="surface-card priority-card" aria-labelledby="priority-heading">
       <div className="section-heading-row">
@@ -205,20 +183,18 @@ function RenewalPriority({ renewal, pending, onStart, onEvidence }: { renewal: N
             <div className="evidence-grid">
               <span>현재 보증금<strong>{formatWon(renewal.currentDeposit)}</strong></span>
               <span>현재 월세<strong>{formatWon(renewal.currentRent)}</strong></span>
-              <span>주변 시세를 반영한 제안<strong>{formatWon(renewal.suggestedRent)}</strong></span>
+              <span>현재 월세에서 4% 조정한 예시<strong>{formatWon(renewal.suggestedRent)}</strong></span>
             </div>
-            <p><InfoCircledIcon /> 제안 금액은 참고용이며 임대인과 임차인의 합의가 우선입니다.</p>
+            <p><InfoCircledIcon /> 시세 조회나 권장 금액이 아닌 데모 계산 예시입니다. 현재 월세에 4%를 더하고 만 원 단위로 반올림했습니다.</p>
           </details>
         </div>
       </div>
-      <button className="button button-primary button-wide" type="button" onClick={onStart} disabled={pending || renewal.status === "requested"}>
-        <PaperPlaneIcon /> {renewal.status === "requested" ? "확인 요청 접수 완료" : pending ? "발송 조건 확인 중…" : "갱신 의사 확인하기"}
-      </button>
+      {renewal.status === "requested" ? <span className="button button-secondary button-wide"><CheckCircledIcon /> 확인 요청 접수 완료</span> : <Link className="button button-primary button-wide" href={`/app/messages?target=${encodeURIComponent(renewal.leaseId)}`}><PaperPlaneIcon /> 갱신 안내 문구 확인</Link>}
     </section>
   );
 }
 
-function Agenda({ overdue, maintenance, pending, onOverdue }: { overdue: DashboardSnapshot["briefing"]["overdue"]; maintenance: DashboardSnapshot["briefing"]["maintenance"]; pending: boolean; onOverdue: () => void }) {
+function Agenda({ overdue, maintenance, hasMutedBriefings }: { overdue: DashboardSnapshot["briefing"]["overdue"]; maintenance: DashboardSnapshot["briefing"]["maintenance"]; hasMutedBriefings: boolean }) {
   return (
     <section className="surface-card agenda-card" aria-labelledby="agenda-heading">
       <div className="section-heading-row"><div><span className="section-kicker">오늘 끝낼 일</span><h2 id="agenda-heading">운영 일정</h2></div><span className="count-badge">{[overdue, maintenance].filter(Boolean).length}</span></div>
@@ -227,18 +203,18 @@ function Agenda({ overdue, maintenance, pending, onOverdue }: { overdue: Dashboa
           <article className="agenda-item">
             <span className="agenda-icon icon-coral"><ExclamationTriangleIcon /></span>
             <div><span className="agenda-time">납부일 {overdue.daysOverdue}일 지남</span><h3>{overdue.unitName} 월세 미납</h3><p>{overdue.tenantName}님, {formatWon(overdue.amount)}</p></div>
-            <button className="button button-secondary button-small" type="button" disabled={pending || overdue.noticeStatus !== "not_sent"} onClick={onOverdue}>{overdue.noticeStatus === "not_sent" ? "안내 보내기" : "접수 완료"}</button>
+            <Link className="button button-secondary button-small" href={`/app/messages?target=${encodeURIComponent(overdue.chargeId)}`}>{overdue.noticeStatus === "not_sent" ? "안내 확인" : "발송함 확인"}</Link>
           </article>
-        ) : <div className="empty-inline"><CheckCircledIcon /> 연체된 임대료가 없어요.</div>}
+        ) : <div className="empty-inline"><CheckCircledIcon /> {hasMutedBriefings ? "표시할 미납 안내가 없어요. 장부와 알림 설정을 확인해 주세요." : "연체된 임대료가 없어요."}</div>}
         {maintenance ? (
           <article className="agenda-item">
             <span className="agenda-icon icon-purple"><GearIcon /></span>
             <div><span className="agenda-time">오늘 접수</span><h3>{maintenance.unitName} 수리 요청</h3><p>{maintenance.title}</p></div>
             <Link className="button button-secondary button-small" href={`/app/maintenance?schedule=${encodeURIComponent(maintenance.requestId)}#schedule-${encodeURIComponent(maintenance.requestId)}`}>{maintenance.status === "received" ? "일정 정하기" : "일정 확인"}</Link>
           </article>
-        ) : <div className="empty-inline"><CheckCircledIcon /> 처리 중인 수리 요청이 없어요.</div>}
+        ) : <div className="empty-inline"><CheckCircledIcon /> {hasMutedBriefings ? "표시할 수리 일정이 없어요. 수리 목록과 알림 설정을 확인해 주세요." : "처리 중인 수리 요청이 없어요."}</div>}
       </div>
-      <div className="guardrail-line"><ClockIcon /><span>오후 9시부터 오전 8시까지는 메시지를 보내지 않고 다음 발송 가능 시간으로 예약해요.</span></div>
+      <div className="guardrail-line"><ClockIcon /><span>메시지 센터에서 문구와 현재 발송 제한 시간을 확인한 뒤 접수해요.</span></div>
     </section>
   );
 }

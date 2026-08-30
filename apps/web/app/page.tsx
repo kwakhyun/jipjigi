@@ -1,8 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
-import { ArrowRightIcon, CheckCircledIcon, ClockIcon, FileTextIcon, PaperPlaneIcon, ReaderIcon } from "@radix-ui/react-icons";
+import { ArrowRightIcon, CheckCircledIcon, FileTextIcon, PaperPlaneIcon, ReaderIcon } from "@radix-ui/react-icons";
 import { BrandLockup } from "@/components/brand-lockup";
 import { MarketingHeader } from "@/components/marketing-header";
+import { MarketingHeroPreview } from "@/components/marketing-hero-preview";
 import { TrackedLink } from "@/components/tracked-link";
 
 export default function MarketingPage() {
@@ -17,14 +17,7 @@ export default function MarketingPage() {
           <div className="marketing-actions"><TrackedLink className="button button-primary button-large" href="/login?mode=owner" source="marketing_hero">운영 데모 열기 <ArrowRightIcon /></TrackedLink><Link className="text-link" href="/#capabilities">핵심 기능 보기</Link></div>
           <div className="marketing-proof"><span><CheckCircledIcon /> 안전한 데이터 보관</span><span><CheckCircledIcon /> 발송 전 안전 점검</span><span><CheckCircledIcon /> 성과 측정</span></div>
         </div>
-        <div className="marketing-visual" aria-label="집지기 오늘의 브리핑 미리보기">
-          <Image src="/assets/jipjigi/hero-night-building.jpg" fill sizes="(max-width: 900px) 92vw, 48vw" alt="야간 도심 건물 전경" priority />
-          <div className="marketing-preview-card">
-            <span>오늘의 운영 브리핑</span><strong>확인이 필요한 일 3건</strong>
-            <div><i className="preview-icon preview-coral"><ClockIcon /></i><p><b>501호 계약 만료</b><small>한 달 이내, 먼저 확인하세요</small></p><em>임박</em></div>
-            <div><i className="preview-icon preview-purple"><PaperPlaneIcon /></i><p><b>203호 월세 미납</b><small>동의와 발송 시간 확인</small></p><em>조치</em></div>
-          </div>
-        </div>
+        <MarketingHeroPreview />
       </section>
       <section className="marketing-operating-loop" id="capabilities">
         <div className="marketing-section-heading"><span className="section-kicker" aria-hidden="true">하나의 운영 흐름</span><h2>발견부터 결과 확인까지, 하나의 흐름으로</h2><p>기능을 나열하는 대신 임대인의 실제 업무 순서에 맞춰 연결했습니다.</p></div>

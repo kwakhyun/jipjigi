@@ -15,6 +15,8 @@ import {
 import { cx } from "@jipjigi/ui";
 import { BrandLockup } from "./brand-lockup";
 import { PageAnalytics } from "./page-analytics";
+import { SessionActions } from "./session-actions";
+import { demoLabels, roleLabels } from "@/lib/auth/navigation";
 
 type NavItem = {
   href: string;
@@ -44,7 +46,7 @@ function activePath(pathname: string, href: string) {
   return href === "/app" ? pathname === href : pathname.startsWith(href);
 }
 
-export function AppShell({ children, user }: { children: ReactNode; user: { name: string; email: string; role: "owner" | "operator" } }) {
+export function AppShell({ children, user, demoEnabled = false }: { children: ReactNode; user: { name: string; email: string; role: "owner" | "operator" }; demoEnabled?: boolean }) {
   const pathname = usePathname();
   const mainNavigation = user.role === "owner" ? primaryNavigation : operatorNavigation;
   const secondaryNavigation = user.role === "owner" ? ownerSecondaryNavigation : [];
@@ -85,6 +87,10 @@ export function AppShell({ children, user }: { children: ReactNode; user: { name
             </Link>
           )}
         </header>
+        <div className="workspace-account-bar" aria-label="현재 계정과 데모 전환">
+          <span className="workspace-role-label">{demoEnabled ? demoLabels[user.role] : roleLabels[user.role]}</span>
+          <SessionActions role={user.role} demoEnabled={demoEnabled} />
+        </div>
         <main id="main-content" className="workspace-content" tabIndex={-1}>{children}</main>
       </div>
       <nav className="mobile-bottom-nav" aria-label="모바일 주요 메뉴">

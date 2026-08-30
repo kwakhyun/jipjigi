@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { CheckCircledIcon, CrossCircledIcon, ExitIcon, Link2Icon } from "@radix-ui/react-icons";
+import { CheckCircledIcon, CrossCircledIcon, Link2Icon } from "@radix-ui/react-icons";
 import { PageHeader } from "@/components/page-header";
 import { SecurityCard, SettingsForm } from "@/components/settings/settings-form";
 import { requireSession } from "@/lib/auth/dal";
 import { getPreferences } from "@/lib/data/repository";
-import { logoutAction } from "./actions";
+import { SessionActions } from "@/components/session-actions";
 
 export const metadata: Metadata = { title: "설정" };
 export const dynamic = "force-dynamic";
@@ -27,7 +27,7 @@ export default async function SettingsPage() {
         <div className="settings-side-column">
           <IntegrationCard />
           {user.role === "operator" ? <SecurityCard /> : null}
-          <section className="surface-card account-card"><div><span className="avatar">{user.name.slice(0, 1)}</span><span><strong>{user.name}</strong><small>{user.email}</small></span></div><form action={logoutAction}><button className="button button-quiet" type="submit"><ExitIcon /> 로그아웃</button></form></section>
+          <section className="surface-card account-card"><div><span className="avatar">{user.name.slice(0, 1)}</span><span><strong>{user.name}</strong><small>{user.email}</small></span></div><SessionActions role={user.role} /></section>
         </div>
       </div>
     </div>

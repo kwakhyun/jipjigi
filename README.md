@@ -23,6 +23,10 @@
 
 두 역할의 메뉴와 API 접근 권한은 분리되어 있습니다.
 
+로그인 화면의 **그로스 데모**는 서비스 운영자용 계정입니다. 개별 임대 계약을 관리하려면 **임대인 데모**를 선택하세요. 업무 화면 상단의 반대쪽 데모 전환 버튼을 누르면 현재 계정에서 로그아웃한 뒤 해당 데모가 선택된 로그인 화면으로 이동합니다. 일반 로그아웃 버튼도 두 역할에 공통으로 제공됩니다.
+
+계약 조회와 데모 전환은 [회귀 검증 기록](docs/audits/2026-08-31-contracts-and-demo-sessions.md), 이후 이벤트 신뢰 경계와 문서 정합성 개선은 [최신 개선 기록](docs/audits/2026-08-31-trust-and-consistency.md)에 정리했습니다. 기능 설명은 이 저장소 버전을 기준으로 하며, 라이브 반영 여부는 해당 커밋의 GitHub Actions와 Vercel 배포 결과로 확인합니다.
+
 ## 제품 화면
 
 | 임대인 홈 | 그로스 관제 |
@@ -43,21 +47,23 @@
 
 사용자가 실험군에 배정됐더라도 화면을 보지 않았다면 전환율의 분모에 포함하지 않아야 합니다. 사용자 ID를 안정적으로 해시해 실험안을 고정하고, 브리핑 UI가 렌더된 뒤 세션당 한 번만 노출 이벤트를 기록했습니다.
 
-노출 이벤트에는 실험 키, 실험안과 위험 유형을 저장합니다. 행동 이벤트는 서버에서 같은 실험 문맥과 함께 기록하고 메시지 요청, 전달 결과와 수신 해제를 분리해 수집합니다. 실제 트래픽 분석에서는 배정 사용자 전체가 아니라 노출 사용자를 기준으로 전환과 안전 지표를 해석할 수 있습니다.
+노출 이벤트의 실험 문맥은 클라이언트 입력 대신 서버 배정으로 확정합니다. 납부 완료와 메시지 전달 같은 서버 전용 이벤트는 공개 수집 API에서 거부하고, 내부 저장 경로에서도 이벤트별 필수 속성을 검증합니다. 관제는 노출 후 24시간 내 같은 실험안의 조치를 집계하고, 서로 다른 실험안에 노출된 사용자는 제외합니다.
 
 **구현 근거:** [결정적 실험 배정](packages/experiments/src/index.ts), [실제 노출 기록](apps/web/components/dashboard/dashboard-view.tsx), [이벤트 허용 목록](packages/analytics/src/index.ts), [배정 테스트](packages/experiments/src/index.test.ts), [실험 설계](docs/EXPERIMENTS.md)
 
 ### 서버 데이터와 일시적인 UI 상태의 소유권을 분리했습니다
 
-인증과 초기 브리핑 데이터는 Server Component에서 읽어 클라이언트 요청 폭포를 줄였습니다. 계약, 청구와 수리처럼 서버가 원본인 데이터는 TanStack Query가 동기화하고, 선택한 건물과 내비게이션 상태처럼 폐기 가능한 값만 Jotai에 둡니다.
+인증과 초기 데이터는 Server Component에서 읽습니다. TanStack Query는 홈의 건물별 브리핑 조회와 재조회를 맡고, Jotai에는 선택한 건물과 내비게이션 상태를 둡니다. 계약 목록은 서버 props를 표시하고, 장부와 수리, 메시지 화면은 서버에서 받은 초기값과 성공 응답을 로컬 상태에 반영합니다.
 
-작업 성공 후에는 관련 Query를 무효화합니다. 같은 서버 데이터를 Query와 Jotai에 중복 저장하지 않고, 서버가 다시 계산한 최신 수납률과 상태를 사용하기 위한 선택입니다.
+Server Action 성공 후에는 업무 화면의 서버 캐시를 무효화합니다. 다른 화면으로 이동할 때 최신 서버 상태를 조회하며, 같은 서버 데이터를 Jotai에 중복 저장하지 않습니다. 모든 목록이 TanStack Query를 사용하는 구조는 아닙니다.
 
 **구현 근거:** [서버 초기 데이터 조회](apps/web/app/app/page.tsx), [Query와 Jotai 공급자](apps/web/components/providers.tsx), [UI 상태 원자](apps/web/lib/state/workspace.ts), [조회와 변경 흐름](apps/web/components/dashboard/dashboard-view.tsx)
 
 ### CRM 요청은 발송보다 운영 안전성을 먼저 확인합니다
 
 갱신 요청과 미납 안내는 곧바로 발송하지 않습니다. 서버에서 리소스 소유권, 연락 동의와 야간 시간을 다시 확인하고 목적에 맞는 멱등 키를 만듭니다. 갱신 요청은 계약별 24시간 1회와 최근 7일 2회로 제한하고, 미납 안내는 계약과 청구월별 한 번만 접수합니다. 전달 실패는 같은 메시지에서 재접수하며 전달 결과, 채널 수신 해제와 갱신 응답은 HMAC 웹훅을 거쳐 타임라인과 관제에 반영합니다.
+
+홈, 계약 관리, 장부의 연락 버튼은 같은 메시지 센터로 연결됩니다. 대상과 문구를 확인한 뒤 접수하며, 설정한 발송 제한 시간도 표시합니다. 샌드박스는 예약 상태와 시각을 저장하지만 자동 발송 워커는 실행하지 않습니다.
 
 **구현 근거:** [발송 가드레일](apps/web/lib/messaging/guardrails.ts), [메시지 서비스](apps/web/lib/messaging/service.ts), [전달 웹훅](apps/web/app/api/webhooks/messages/route.ts), [갱신 응답 웹훅](apps/web/app/api/webhooks/renewal-responses/route.ts), [CRM 통합 테스트](apps/web/app/api/webhooks/messages/route.test.ts)
 
@@ -89,7 +95,7 @@ Browser
 
 | 대상 | 검증 결과 | 실행 근거 |
 | --- | --- | --- |
-| 프로덕션 웹앱 | 단위 및 통합 테스트 13개 파일, 31개 테스트 통과 | `pnpm --filter @jipjigi/web test` |
+| 프로덕션 웹앱 | 2026-08-31 전체 회귀 검증: 23개 파일, 77개 테스트 통과. 공통 패키지 8개 테스트 추가 통과 | [최신 검증 기록](docs/audits/2026-08-31-trust-and-consistency.md) |
 | 타입과 빌드 | TypeScript 검사, Next.js 프로덕션 빌드 통과 | `pnpm typecheck`, `pnpm build` |
 | 성능 예산 | 주요 화면 gzip 번들 예산 통과 | `pnpm bundle:check` |
 | 접근성 | 주요 내비게이션, 수리와 알림 설정에 axe-core 검사 적용 | [컴포넌트 테스트](apps/web/components/maintenance/maintenance-view.test.tsx) |
@@ -118,7 +124,7 @@ npm --prefix prototype run test:sites
 
 현재 결과물은 프로덕션 구조와 배포 흐름을 검증한 공개 포트폴리오 데모입니다. Vercel에서는 Neon Postgres가 영속 데이터를 보관하고 Upstash Redis가 인스턴스 간 요청 제한을 공유합니다. 로컬 개발은 같은 PostgreSQL 문법을 실행하는 PGlite를 사용합니다. 외부 알림톡은 실제 공급자 계약 대신 샌드박스를 사용하고, 금융 정보는 데모 데이터로 제공합니다.
 
-실서비스로 전환하려면 내구성 이벤트 큐, 실제 인증과 CRM 공급자, 중앙 비밀 값 관리와 장애 알림이 추가로 필요합니다. 구현된 범위와 후속 작업은 [프로덕션 준비 상태](docs/PRODUCTION-READINESS.md)에서 구분해 확인할 수 있습니다.
+실서비스로 전환하려면 내구성 이벤트 큐와 예약 발송 워커, 실제 인증과 CRM 공급자, 중앙 비밀 값 관리와 장애 알림이 추가로 필요합니다. 구현된 범위와 후속 작업은 [프로덕션 준비 상태](docs/PRODUCTION-READINESS.md)에서 구분해 확인할 수 있습니다.
 
 실험 결과를 과장하지 않기 위해 실제 사용자 데이터가 없는 지표는 성과로 표기하지 않았습니다. 이 프로젝트는 실험을 설계하고 측정 가능한 상태로 구현하는 역량을 보여주는 데 초점을 둡니다.
 

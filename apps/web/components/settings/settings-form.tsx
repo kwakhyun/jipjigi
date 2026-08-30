@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type FormEvent } from "react";
 import { CheckCircledIcon, ClockIcon, LockClosedIcon } from "@radix-ui/react-icons";
 import { savePreferencesAction } from "@/app/app/actions";
 import { useTransientMessage } from "@/lib/hooks/use-transient-message";
@@ -19,33 +19,40 @@ export function SettingsForm({ initial }: { initial: Settings }) {
   const [isPending, startTransition] = useTransition();
   const [status, showStatus] = useTransientMessage(2_500);
 
-  const save = () => {
+  const save = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const next = {
+      ...value,
+      quietHoursStart: String(formData.get("quietHoursStart") ?? ""),
+      quietHoursEnd: String(formData.get("quietHoursEnd") ?? ""),
+    };
     startTransition(async () => {
-      const result = await savePreferencesAction(value);
+      const result = await savePreferencesAction(next);
       showStatus(result.ok ? "변경 사항을 저장했어요." : result.error);
     });
   };
 
   return (
-    <section className="surface-card settings-section" aria-labelledby="notification-title">
+    <form className="surface-card settings-section" aria-labelledby="notification-title" onSubmit={save}>
       <div className="settings-heading"><span className="settings-icon"><ClockIcon /></span><div><h2 id="notification-title">알림 및 발송 설정</h2><p>운영 알림과 임차인 메시지 발송 기준을 설정합니다.</p></div></div>
       <div className="toggle-list">
-        <Toggle label="임대료 미납 감지" description="기한이 지나면 임대인에게 조치 카드를 보여줍니다." checked={value.rentReminder} onChange={(checked) => setValue((current) => ({ ...current, rentReminder: checked }))} />
-        <Toggle label="계약 갱신 알림" description="만료 60일 전부터 위험 브리핑에 표시합니다." checked={value.renewalReminder} onChange={(checked) => setValue((current) => ({ ...current, renewalReminder: checked }))} />
-        <Toggle label="수리 상태 알림" description="접수, 방문 일정, 완료 단계가 바뀌면 알려드립니다." checked={value.maintenanceUpdates} onChange={(checked) => setValue((current) => ({ ...current, maintenanceUpdates: checked }))} />
-        <Toggle label="제품 소식과 혜택" description="운영 알림과 별도로 동의할 수 있습니다." checked={value.marketing} onChange={(checked) => setValue((current) => ({ ...current, marketing: checked }))} />
+        <Toggle label="임대료 미납 감지" description="홈에 미납 조치 카드를 표시합니다. 꺼도 장부에서는 확인할 수 있습니다." checked={value.rentReminder} onChange={(checked) => setValue((current) => ({ ...current, rentReminder: checked }))} />
+        <Toggle label="계약 갱신 알림" description="갱신 확인 대상 중 만료 60일 이내 계약을 홈에 표시합니다." checked={value.renewalReminder} onChange={(checked) => setValue((current) => ({ ...current, renewalReminder: checked }))} />
+        <Toggle label="수리 상태 알림" description="홈에 처리 중인 수리 일정을 표시합니다. 꺼도 수리 목록은 유지됩니다." checked={value.maintenanceUpdates} onChange={(checked) => setValue((current) => ({ ...current, maintenanceUpdates: checked }))} />
+        <Toggle label="제품 소식과 혜택" description="수신 동의만 저장합니다. 데모에서는 마케팅 알림을 발송하지 않습니다." checked={value.marketing} onChange={(checked) => setValue((current) => ({ ...current, marketing: checked }))} />
       </div>
       <div className="quiet-hours-form">
-        <div><strong>발송 제한 시간</strong><p>이 시간에는 임차인 메시지를 보내지 않고 다음 발송 가능 시간으로 예약합니다.</p></div>
-        <label><span>시작</span><input type="time" value={value.quietHoursStart} onChange={(event) => setValue((current) => ({ ...current, quietHoursStart: event.target.value }))} /></label>
+        <div><strong>발송 제한 시간</strong><p>이 시간의 요청은 예약 상태와 다음 발송 가능 시각으로 저장합니다. 데모에서는 자동 발송하지 않습니다.</p></div>
+        <label><span>시작</span><input type="time" name="quietHoursStart" defaultValue={initial.quietHoursStart} required /></label>
         <span aria-hidden="true">~</span>
-        <label><span>종료</span><input type="time" value={value.quietHoursEnd} onChange={(event) => setValue((current) => ({ ...current, quietHoursEnd: event.target.value }))} /></label>
+        <label><span>종료</span><input type="time" name="quietHoursEnd" defaultValue={initial.quietHoursEnd} required /></label>
       </div>
       <div className="settings-save-row">
         <span role="status">{status ? <>{status === "변경 사항을 저장했어요." ? <CheckCircledIcon /> : null} {status}</> : null}</span>
-        <button className="button button-primary" type="button" disabled={isPending} onClick={save}>{isPending ? "저장 중…" : "변경 사항 저장"}</button>
+        <button className="button button-primary" type="submit" disabled={isPending}>{isPending ? "저장 중…" : "변경 사항 저장"}</button>
       </div>
-    </section>
+    </form>
   );
 }
 

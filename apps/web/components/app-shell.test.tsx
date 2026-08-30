@@ -7,6 +7,7 @@ import { AppShell } from "./app-shell";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/app" }));
 vi.mock("./page-analytics", () => ({ PageAnalytics: () => null }));
+vi.mock("@/app/login/actions", () => ({ logoutAction: vi.fn() }));
 
 describe("AppShell", () => {
   afterEach(cleanup);
@@ -32,5 +33,16 @@ describe("AppShell", () => {
     const result = await axe.run(container, { rules: { "color-contrast": { enabled: false } } });
 
     expect(result.violations.map((violation) => violation.id)).toEqual([]);
+  });
+
+  it.each([
+    ["owner", "그로스 데모로 전환", "임대인 데모"],
+    ["operator", "임대인 데모로 전환", "그로스 데모"],
+  ] as const)("%s 계정의 모든 화면에서 로그아웃과 반대 데모 전환을 제공한다", (role, switchLabel, currentLabel) => {
+    render(<AppShell user={{ name: "데모", email: "demo@jipjigi.kr", role }} demoEnabled><p>본문</p></AppShell>);
+    expect(screen.getByRole("button", { name: switchLabel })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "로그아웃" })).toBeTruthy();
+    expect(screen.getByText(currentLabel)).toBeTruthy();
+    if (role === "operator") expect(screen.queryByRole("link", { name: "계약 관리" })).toBeNull();
   });
 });

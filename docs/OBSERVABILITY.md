@@ -18,14 +18,20 @@
 
 `pnpm bundle:check`는 Next.js가 생성한 경로별 첫 로드 청크를 gzip으로 압축해 합산합니다. 공개 경로는 170KiB, 일반 앱 경로는 170KiB, 클라이언트 상태와 질의 런타임이 필요한 `/app`은 185KiB를 상한으로 둡니다. 이 검사는 `pnpm verify`와 GitHub Actions에 포함됩니다.
 
-2026년 8월 30일 기준 결과입니다.
+2026년 8월 31일 전체 검증 빌드 기준 결과입니다.
 
 | 경로 | gzip 합산 | 예산 |
 |---|---:|---:|
-| `/` | 151.7KiB | 170KiB |
-| `/login` | 147.4KiB | 170KiB |
-| `/app` | 173.5KiB | 185KiB |
-| `/app/growth` | 148.9KiB | 170KiB |
+| `/` | 152.6KiB | 170KiB |
+| `/login` | 149.1KiB | 170KiB |
+| `/rental-management/[district]` | 147.7KiB | 170KiB |
+| `/app` | 174.2KiB | 185KiB |
+| `/app/contracts` | 153.2KiB | 170KiB |
+| `/app/growth` | 150.8KiB | 170KiB |
+| `/app/ledger` | 153.0KiB | 170KiB |
+| `/app/maintenance` | 153.4KiB | 170KiB |
+| `/app/messages` | 154.1KiB | 170KiB |
+| `/app/settings` | 152.7KiB | 170KiB |
 
 이 수치는 CDN의 실제 Brotli 전송량이 아니라 재현 가능한 CI 회귀 지표입니다. 실제 사용자 경험은 RUM p75를 최종 기준으로 판단합니다.
 

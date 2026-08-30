@@ -113,6 +113,7 @@ async function ownedBuilding(userId: string, buildingId?: string) {
 export async function getDashboardSnapshot(userId: string, buildingId?: string): Promise<DashboardSnapshot> {
   const db = await getDatabase();
   const building = await ownedBuilding(userId, buildingId);
+  const preferences = await getPreferences(userId);
   const occupancy = await db
     .prepare(
         `SELECT SUM(CASE WHEN status = 'occupied' THEN 1 ELSE 0 END)::int AS occupiedUnits
@@ -154,6 +155,7 @@ export async function getDashboardSnapshot(userId: string, buildingId?: string):
         l.renewal_status AS status
        FROM leases l JOIN units u ON u.id = l.unit_id
        WHERE u.building_id = ? AND l.status = 'active' AND l.renewal_status IN ('attention', 'requested')
+         AND l.end_date::date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date + 60
        ORDER BY l.end_date ASC LIMIT 1`,
     )
     .get<NonNullable<DashboardSnapshot["briefing"]["renewal"]>>(building.id);
@@ -197,8 +199,9 @@ export async function getDashboardSnapshot(userId: string, buildingId?: string):
     lease_risk_detected: { label: "계약 만료 임박", detail: "501호 계약 갱신 여부를 확인해 주세요", tone: "warning" },
     payment_marked: { label: "입금 직접 확인", detail: "장부 상태를 납부 완료로 변경했어요", tone: "positive" },
     overdue_notice_sent: { label: "미납 안내 접수", detail: "발송 제한을 확인하고 접수했어요", tone: "neutral" },
-    renewal_started: { label: "갱신 협의 시작", detail: "임차인에게 확인 요청을 보냈어요", tone: "neutral" },
+    renewal_started: { label: "갱신 안내 접수", detail: "갱신 의사 확인 요청을 접수했어요", tone: "neutral" },
     maintenance_updated: { label: "수리 상태 변경", detail: "처리 상태를 변경했어요", tone: "positive" },
+    notification_preferences_updated: { label: "알림 설정 변경", detail: "홈 표시 항목과 메시지 발송 기준을 저장했어요", tone: "neutral" },
   };
 
   const occupiedUnits = occupancy?.occupiedUnits ?? 0;
@@ -212,10 +215,15 @@ export async function getDashboardSnapshot(userId: string, buildingId?: string):
       occupiedRate: Math.round((occupiedUnits / building.totalUnits) * 1000) / 10,
       openMaintenance: openMaintenance?.count ?? 0,
     },
-    briefing: { renewal: renewal ?? null, overdue: overdue ?? null, maintenance: maintenance ?? null },
+    briefing: {
+      renewal: preferences?.renewalReminder === 0 ? null : renewal ?? null,
+      overdue: preferences?.rentReminder === 0 ? null : overdue ?? null,
+      maintenance: preferences?.maintenanceUpdates === 0 ? null : maintenance ?? null,
+    },
+    hasMutedBriefings: preferences?.renewalReminder === 0 || preferences?.rentReminder === 0 || preferences?.maintenanceUpdates === 0,
     recentActivities: activityRows.map((row) => ({
       id: row.id,
-      ...(activityMap[row.action] ?? { label: row.action, detail: `${row.entityType} 정보가 변경됐어요`, tone: "neutral" as const }),
+      ...(activityMap[row.action] ?? { label: "운영 정보 변경", detail: "변경 사항을 저장했어요", tone: "neutral" as const }),
       occurredAt: row.occurredAt,
     })),
   };
@@ -267,7 +275,7 @@ export async function listContracts(userId: string) {
      JOIN leases l ON l.id = r.lease_id
      JOIN units u ON u.id = l.unit_id JOIN buildings b ON b.id = u.building_id
      WHERE b.owner_id = ?
-     ORDER BY occurredAt DESC`,
+     ORDER BY "occurredAt" DESC, id DESC`,
   ).all<ContractTimelineEvent & { leaseId: string }>(userId, userId);
   return contracts.map((contract) => ({
     ...contract,
@@ -414,23 +422,29 @@ export async function getGrowthOverview() {
        SELECT user_id, variant, MIN(occurred_at) AS exposedAt
        FROM product_events
        WHERE experiment_key = ? AND name = 'experiment_exposed'
+         AND user_id IS NOT NULL AND user_segment = 'owner'
          AND occurred_at::timestamptz >= CURRENT_TIMESTAMP - INTERVAL '7 days'
          AND variant IN ('risk-first', 'agenda-first')
+         AND user_id NOT IN (
+           SELECT user_id FROM product_events WHERE experiment_key = ? AND name = 'experiment_exposed' AND user_id IS NOT NULL
+           GROUP BY user_id HAVING COUNT(DISTINCT variant) > 1
+         )
        GROUP BY user_id, variant
      ), converted AS (
        SELECT DISTINCT e.user_id, e.variant
        FROM exposures e JOIN product_events action ON action.user_id = e.user_id
        WHERE action.name IN ('renewal_started', 'overdue_notice_requested', 'payment_marked', 'maintenance_updated')
+         AND action.experiment_key = ? AND action.variant = e.variant
          AND action.occurred_at::timestamptz BETWEEN e.exposedAt::timestamptz AND e.exposedAt::timestamptz + INTERVAL '24 hours'
      )
      SELECT e.variant, COUNT(*)::int AS exposedUsers, COUNT(c.user_id)::int AS actionUsers
      FROM exposures e LEFT JOIN converted c ON c.user_id = e.user_id AND c.variant = e.variant
      GROUP BY e.variant ORDER BY e.variant`,
-  ).all<{ variant: BriefingVariant; exposedUsers: number; actionUsers: number }>(briefingPriorityExperiment.key);
+  ).all<{ variant: BriefingVariant; exposedUsers: number; actionUsers: number }>(briefingPriorityExperiment.key, briefingPriorityExperiment.key, briefingPriorityExperiment.key);
   const deliveredRecipients = await db.prepare(
     `SELECT COUNT(DISTINCT CASE WHEN md.entity_type = 'lease' THEN md.entity_id ELSE c.lease_id END)::int AS count
      FROM message_dispatches md LEFT JOIN charges c ON md.entity_type = 'charge' AND c.id = md.entity_id
-     WHERE md.status = 'delivered' AND md.delivered_at::timestamptz >= CURRENT_TIMESTAMP - INTERVAL '7 days'`,
+     WHERE md.status = 'delivered' AND md.delivered_at::timestamptz BETWEEN CURRENT_TIMESTAMP - INTERVAL '7 days' AND CURRENT_TIMESTAMP`,
   ).get<{ count: number }>();
   const optOuts = await db.prepare(
     `SELECT COUNT(DISTINCT o.lease_id)::int AS count
@@ -439,8 +453,11 @@ export async function getGrowthOverview() {
        AND EXISTS (
          SELECT 1 FROM message_dispatches md
          LEFT JOIN charges c ON md.entity_type = 'charge' AND c.id = md.entity_id
-         WHERE md.status = 'delivered' AND md.delivered_at::timestamptz >= CURRENT_TIMESTAMP - INTERVAL '7 days'
+         WHERE md.status = 'delivered' AND md.delivered_at::timestamptz BETWEEN CURRENT_TIMESTAMP - INTERVAL '7 days' AND CURRENT_TIMESTAMP
            AND (CASE WHEN md.entity_type = 'lease' THEN md.entity_id ELSE c.lease_id END) = o.lease_id
+           AND o.channel = md.channel
+           AND o.occurred_at::timestamptz BETWEEN md.delivered_at::timestamptz
+             AND LEAST(CURRENT_TIMESTAMP, md.delivered_at::timestamptz + INTERVAL '7 days')
        )`,
   ).get<{ count: number }>();
   const acceptedAttempts = messageStats

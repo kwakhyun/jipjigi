@@ -49,11 +49,11 @@ jipjigi/
 
 ### 검색 유입 페이지
 
-현재 검색 유입 페이지는 `app/page.tsx`와 `app/rental-management/[district]`에서 Server Component를 기본으로 사용합니다. 지역별 임대관리 가이드는 `generateStaticParams`로 정적 생성하며 메타데이터와 구조화 데이터를 서버에서 만듭니다. 경로 수가 늘어나면 `(marketing)` route group과 ISR 경계로 분리합니다.
+현재 검색 유입 페이지는 `app/page.tsx`와 `app/rental-management/[district]`에서 Server Component를 기본으로 사용합니다. 지역 가이드에 `generateStaticParams`와 `dynamicParams = false`를 선언하고 메타데이터와 구조화 데이터를 서버에서 만듭니다. 다만 2026-08-31 Next.js 16.3.3 빌드에서는 공개 페이지가 동적 렌더링으로 분류되고 prerender manifest에도 지역 HTML이 등록되지 않아, 정적 생성 완료로 간주하지 않습니다. 정적 HTML 산출과 CDN 캐시 검증은 후속 최적화입니다.
 
 ### 인증된 제품 화면
 
-브리핑 초기 데이터는 Server Component에서 병렬로 읽어 직렬화 가능한 DTO로 전달합니다. 사용자가 직접 조작하는 바텀시트, 탭, 낙관적 상태만 Client Component가 맡습니다. Client Component는 비동기 함수가 되지 않으며 `Date`, `Map`, 클래스 인스턴스를 서버 경계에서 전달하지 않습니다.
+브리핑 초기 데이터는 Server Component에서 읽어 직렬화 가능한 DTO로 전달합니다. 사용자 입력과 성공 응답을 반영하는 상태는 Client Component가 맡습니다. Client Component는 비동기 함수가 되지 않으며 `Date`, `Map`, 클래스 인스턴스를 서버 경계에서 전달하지 않습니다. 바텀시트는 현재 보호된 프로토타입에서 사용합니다.
 
 ```text
 Server Component
@@ -62,8 +62,8 @@ Server Component
   └── ISO 문자열과 평범한 객체로 직렬화
         ↓
 Client Briefing Island
-  ├── Jotai: 열린 시트, 선택 건물, 임시 입력
-  ├── TanStack Query: 후속 갱신, 재시도, 낙관적 업데이트
+  ├── Jotai: 선택 건물과 내비게이션 상태
+  ├── TanStack Query: 건물별 브리핑 조회와 재조회
   └── analytics: 노출과 행동 이벤트
 ```
 
@@ -82,11 +82,11 @@ Client Briefing Island
 
 ## 5. 상태 관리 규칙
 
-- TanStack Query에는 계약, 청구, 수리 요청처럼 서버가 원본인 데이터만 둡니다.
-- Jotai에는 현재 건물, 열린 바텀시트, 작성 중인 문구처럼 폐기 가능한 UI 상태만 둡니다.
+- 현재 TanStack Query는 홈의 건물별 브리핑에 사용합니다. 계약은 서버 props를 표시하며, 장부와 수리, 메시지는 서버 초기값과 성공 응답을 useState에 반영합니다.
+- Jotai에는 선택 건물과 내비게이션 상태만 둡니다. 입력과 필터는 해당 컴포넌트의 로컬 상태입니다.
 - 같은 서버 데이터를 Query와 Jotai에 중복 저장하지 않습니다.
 - Server Component가 가져온 초기 데이터는 Query의 `initialData`로 전달합니다.
-- 발송 성공은 서버 응답을 받은 뒤 캐시를 갱신하며, 중복 발송 방지는 서버 멱등 키가 책임집니다.
+- Server Action 성공 후 업무 화면의 서버 캐시를 무효화합니다. 목록의 로컬 상태도 성공 응답 뒤 갱신하며, 중복 발송 방지는 서버 멱등 키가 책임집니다.
 
 ## 6. 스타일과 디자인 시스템
 

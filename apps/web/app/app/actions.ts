@@ -1,5 +1,7 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import {
   NotificationPreferencesSchema,
   OperationSchema,
@@ -33,6 +35,7 @@ export async function runOperationAction(input: Operation): Promise<ActionResult
       operation: parsed.data.type,
       durationMs: Math.round(performance.now() - startedAt),
     });
+    revalidatePath("/app", "layout");
     return { ok: true, data };
   } catch (error) {
     if (error instanceof OperationError) {
@@ -59,7 +62,9 @@ export async function savePreferencesAction(
   if (!parsed.success) return { ok: false, error: "알림 설정을 다시 확인해 주세요.", code: "INVALID_INPUT" };
 
   try {
-    return { ok: true, data: await updatePreferences(user.id, parsed.data) };
+    const data = await updatePreferences(user.id, parsed.data);
+    revalidatePath("/app", "layout");
+    return { ok: true, data };
   } catch (error) {
     logger.error("preferences.action.failed", {
       userId: user.id,
