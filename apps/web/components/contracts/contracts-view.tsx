@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CalendarIcon, CheckCircledIcon, InfoCircledIcon, PaperPlaneIcon } from "@radix-ui/react-icons";
 import { formatWon } from "@jipjigi/domain/format";
 import type { ContractRow, ContractTimelineEvent } from "@/lib/data/repository";
-import { daysUntilDate } from "@/lib/format/date";
+import { daysUntilDate, formatKoreanScheduleDateTime } from "@/lib/format/date";
 import { ownerResourceOptions } from "@/lib/query/options";
 import { useOwnerId } from "@/lib/query/owner-context";
 import { isSessionError } from "@/lib/query/client";
@@ -60,7 +60,7 @@ function ContractTimeline({ events }: { events: ContractTimelineEvent[] }) {
     <details className="contract-timeline">
       <summary>갱신 연락 기록 {events.length}건</summary>
       <ol>
-        {events.map((event) => <li key={event.id}><span>{timelineLabel(event)}</span><time dateTime={event.occurredAt}>{formatDateTime(event.occurredAt)}</time></li>)}
+        {events.map((event) => <li key={event.id}><span>{timelineLabel(event)}</span><time dateTime={event.occurredAt}>{formatKoreanScheduleDateTime(event.occurredAt)}</time></li>)}
       </ol>
     </details>
   );
@@ -77,10 +77,6 @@ function timelineLabel(event: ContractTimelineEvent) {
     declined: "임차인이 종료 의사 전달",
   };
   return labels[event.status];
-}
-
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("ko-KR", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Seoul" }).format(new Date(value));
 }
 
 function RenewalStatus({ status }: { status: ContractRow["renewalStatus"] }) {

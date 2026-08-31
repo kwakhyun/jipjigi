@@ -114,10 +114,10 @@ Browser
 
 | 대상 | 검증 결과 | 실행 근거 |
 | --- | --- | --- |
-| 웹 단위 및 통합 | 2026-08-31 개인 데모와 청구월 선택 적용 후 31개 파일, 125개 테스트 통과. 공통 패키지 8개 추가 통과 | [최신 개선 사례](docs/case-studies/demo-reproducibility.md) |
+| 웹 단위 및 통합 | 2026-08-31 개인 데모와 시간 표시 회귀 수정 후 31개 파일, 126개 테스트 통과. 공통 패키지 8개 추가 통과 | [최신 개선 사례](docs/case-studies/demo-reproducibility.md) |
 | 실제 웹앱 E2E | Chromium 핵심 여정 4개 통과. 저장 유지, 역할 전환, 방문자 격리, 두 홈 구성과 모바일 로그아웃 검증 | [범위와 실행 방법](docs/E2E.md) |
 | 타입과 빌드 | 개인 데모 변경 적용 후 5개 패키지 타입 검사와 Next.js 프로덕션 빌드 통과 | `pnpm verify`, 2026-08-31 |
-| 성능 예산 | 10개 경로 모두 기존 예산 통과. 홈 177.3KiB / 185KiB, 메시지 167.7KiB / 170KiB | [전후 측정값](docs/OBSERVABILITY.md) |
+| 성능 예산 | 10개 경로 모두 기존 예산 통과. 홈 177.3KiB / 185KiB, 메시지 168.0KiB / 170KiB | [전후 측정값](docs/OBSERVABILITY.md) |
 | 접근성 | 주요 내비게이션, 수리와 알림 설정에 axe-core 검사 적용 | [컴포넌트 테스트](apps/web/components/maintenance/maintenance-view.test.tsx) |
 | 성능 관측 | 실제 브라우저 지표 수집과 최근 7일 p75 집계 | [수집 코드](apps/web/components/web-vitals-reporter.tsx), [집계 코드](apps/web/lib/data/repository.ts) |
 | 모바일 프로토타입 | 기존 별도 시안 검증에서 Playwright 핵심 흐름 10개 통과. 이번 웹앱 E2E와는 별도 | `npm --prefix prototype run test:runtime` |

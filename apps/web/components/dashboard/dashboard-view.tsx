@@ -24,7 +24,7 @@ import { briefingOptions } from "@/lib/query/options";
 import { useOwnerId } from "@/lib/query/owner-context";
 import { isSessionError } from "@/lib/query/client";
 import { QueryFeedback } from "@/components/query-feedback";
-import { relativeDayLabel } from "@/lib/format/date";
+import { formatKoreanTime, relativeDayLabel } from "@/lib/format/date";
 
 type Building = { id: string; name: string; address: string; totalUnits: number; occupiedUnits: number };
 
@@ -147,7 +147,7 @@ function DashboardContent({ initialBuildingId, buildings, userName }: DashboardP
             {snapshot.recentActivities.map((activity) => (
               <li key={activity.id}>
                 <span className={`activity-dot tone-${activity.tone}`} />
-                <div><strong>{activity.label}</strong><p>{activity.detail}</p><time dateTime={activity.occurredAt}>{formatActivityTime(activity.occurredAt)}</time></div>
+                <div><strong>{activity.label}</strong><p>{activity.detail}</p><time dateTime={activity.occurredAt}>{formatKoreanTime(activity.occurredAt)}</time></div>
               </li>
             ))}
           </ol>
@@ -214,10 +214,6 @@ function Agenda({ overdue, maintenance, hasMutedBriefings, referenceTime }: { ov
       <div className="guardrail-line"><ClockIcon /><span>메시지 센터에서 문구와 현재 발송 제한 시간을 확인한 뒤 접수해요.</span></div>
     </section>
   );
-}
-
-function formatActivityTime(value: string) {
-  return new Intl.DateTimeFormat("ko-KR", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Seoul" }).format(new Date(value));
 }
 
 function formatDashboardDate(value: string) {

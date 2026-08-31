@@ -10,6 +10,8 @@ test("계약에서 메시지를 접수하고 새로고침과 역할 전환 후�
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await login(page);
+  await page.reload();
+  await expect(page.getByRole("region", { name: "최근 청구월 운영 지표" })).toBeVisible();
   await page.getByRole("link", { name: "계약 관리", exact: true }).click();
   await expect(page.getByRole("heading", { name: "계약 관리", exact: true })).toBeVisible();
   await expect(page.locator(".contract-row")).toHaveCount(25);
@@ -23,6 +25,8 @@ test("계약에서 메시지를 접수하고 새로고침과 역할 전환 후�
   await expect(page.locator(".outbox-row")).toContainText("성수 리버하임 501호");
   await page.getByRole("link", { name: "계약 관리", exact: true }).click();
   await expect(page.getByText("응답 대기", { exact: true })).toBeVisible();
+  await expect(page.getByText(/갱신 연락 기록 1건/)).toBeVisible();
+  await page.reload();
   await expect(page.getByText(/갱신 연락 기록 1건/)).toBeVisible();
   await page.getByRole("button", { name: "그로스 데모로 전환", exact: true }).click();
   await expect(page).toHaveURL(/\/login\?mode=operator$/);

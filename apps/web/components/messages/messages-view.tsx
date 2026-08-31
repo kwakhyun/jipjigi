@@ -10,6 +10,7 @@ import { useOwnerId } from "@/lib/query/owner-context";
 import { useOperationMutation } from "@/lib/query/use-operation";
 import { isSessionError } from "@/lib/query/client";
 import { QueryFeedback } from "@/components/query-feedback";
+import { formatKoreanScheduleDateTime } from "@/lib/format/date";
 
 type Target = { kind: "charge" | "lease"; id: string; label: string; recipient: string; template: string };
 
@@ -94,7 +95,7 @@ export function MessagesView({ initialTargetId }: { initialTargetId?: string | u
             {messages.map((message) => (
               <article className="outbox-row" key={message.id}>
                 <span className={`channel-icon status-${message.status}`}><PaperPlaneIcon /></span>
-                <div><strong>{templateLabel(message.templateKey)}</strong><p>{message.channel === "sandbox_alimtalk" ? "샌드박스 알림톡" : "앱 푸시"} · {recipientLabel(message.entityId, [...contracts, ...charges])}</p><time dateTime={message.createdAt}>{formatDateTime(message.createdAt)}</time></div>
+                <div><strong>{templateLabel(message.templateKey)}</strong><p>{message.channel === "sandbox_alimtalk" ? "샌드박스 알림톡" : "앱 푸시"} · {recipientLabel(message.entityId, [...contracts, ...charges])}</p><time dateTime={message.createdAt}>{formatKoreanScheduleDateTime(message.createdAt)}</time></div>
                 <div className="outbox-status-actions"><MessageStatus message={message} />{message.status === "failed" ? <button className="button button-secondary button-small" type="button" disabled={isPending} onClick={() => retry(message)}>{retryingId === message.id ? "재접수 중…" : "다시 접수"}</button> : null}</div>
               </article>
             ))}
@@ -119,8 +120,4 @@ function recipientLabel(id: string, resources: Array<{ id: string; buildingName:
 
 function templateLabel(key: string) {
   return key === "overdue_notice_v1" ? "정중한 미납 안내" : "계약 갱신 의사 확인";
-}
-
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("ko-KR", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Seoul" }).format(new Date(value));
 }

@@ -1,5 +1,13 @@
 const DAY_IN_MS = 86_400_000;
 const seoulDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" });
+const seoulDateTime = new Intl.DateTimeFormat("en-CA", {
+  month: "numeric",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: "Asia/Seoul",
+});
 
 export function daysUntilDate(value: string | undefined, referenceTime: string) {
   if (!value) return "-";
@@ -13,18 +21,21 @@ export function relativeDayLabel(value: string, referenceTime: string) {
   return days <= 0 ? "오늘" : `${days}일 전`;
 }
 
-export function formatKoreanScheduleDateTime(value: string) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-    timeZone: "Asia/Seoul",
-  }).formatToParts(new Date(value));
-  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? "";
-  const hour = Number(part("hour"));
+function koreanClock(parts: Intl.DateTimeFormatPart[]) {
+  const hour = Number(parts.find((item) => item.type === "hour")?.value);
+  const minute = parts.find((item) => item.type === "minute")?.value;
   const displayHour = hour % 12 || 12;
+  // Node and browser ICU releases can disagree on ko-KR day periods (AM/오전).
+  // Keep display text deterministic without disabling SSR or hydration checks.
+  return `${hour < 12 ? "오전" : "오후"} ${displayHour}:${minute}`;
+}
 
-  return `${Number(part("month"))}월 ${Number(part("day"))}일 ${hour < 12 ? "오전" : "오후"} ${displayHour}:${part("minute")}`;
+export function formatKoreanTime(value: string) {
+  return koreanClock(seoulDateTime.formatToParts(new Date(value)));
+}
+
+export function formatKoreanScheduleDateTime(value: string) {
+  const parts = seoulDateTime.formatToParts(new Date(value));
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? "";
+  return `${Number(part("month"))}월 ${Number(part("day"))}일 ${koreanClock(parts)}`;
 }

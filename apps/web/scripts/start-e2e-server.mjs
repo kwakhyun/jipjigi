@@ -21,6 +21,7 @@ const server = spawn(process.execPath, [entrypoint], {
   env: {
     ...process.env,
     NODE_ENV: "production",
+    TZ: "UTC",
     HOSTNAME: "localhost",
     PORT: "3118",
     VERCEL_ENV: "preview",

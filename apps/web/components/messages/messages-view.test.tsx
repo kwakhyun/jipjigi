@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ContractRow, LedgerRow } from "@/lib/data/repository";
+import type { ContractRow, LedgerRow, MessageRow } from "@/lib/data/repository";
 const { submit } = vi.hoisted(() => ({ submit: vi.fn() }));
 vi.mock("@/lib/operations/client", () => ({ submitOperation: submit }));
 import { MessagesView } from "./messages-view";
@@ -9,8 +9,8 @@ import { ownerQueryHarness } from "@/lib/query/test-harness";
 
 const contracts: ContractRow[] = [{ id: "lease-501", unitName: "501호", tenantName: "김가상", tenantPhoneMasked: "010-****-0000", startDate: "2025-09-01", endDate: "2026-09-30", depositAmount: 10000000, monthlyRent: 500000, renewalStatus: "attention", buildingName: "가상 건물", timeline: [] }];
 const charges: LedgerRow[] = [{ id: "charge-203", period: "2026-08", dueDate: "2026-08-20", amount: 500000, status: "overdue", paidAt: null, unitName: "203호", tenantName: "이가상", buildingName: "가상 건물" }];
-function harness() { return ownerQueryHarness({ messages: [], contracts, ledger: charges, preferences: { rentReminder: true, renewalReminder: true, maintenanceUpdates: true, marketing: false, quietHoursStart: "22:30", quietHoursEnd: "09:15" } }); }
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+function harness(messages: MessageRow[] = []) { return ownerQueryHarness({ messages, contracts, ledger: charges, preferences: { rentReminder: true, renewalReminder: true, maintenanceUpdates: true, marketing: false, quietHoursStart: "22:30", quietHoursEnd: "09:15" } }); }
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 beforeEach(() => { submit.mockReset(); });
 
 describe("발송 전 공통 미리보기", () => {
@@ -44,5 +44,15 @@ describe("발송 전 공통 미리보기", () => {
     render(<MessagesView />, { wrapper: harness().Wrapper });
     expect(screen.getByText("발송 제한 22:30~09:15 (한국 시간)")).toBeTruthy();
     expect(screen.getByText(/자동 발송은 실행되지 않습니다/)).toBeTruthy();
+  });
+
+  it("런타임의 한국어 로케일이 AM을 반환해도 발송 시각을 동일한 한국어로 표시한다", () => {
+    // CI's Node ICU formatted ko-KR with AM, while Chromium used 오전.
+    // format is a runtime getter, although TypeScript declares it as a method.
+    const dateTimePrototype: { readonly format: unknown } = Intl.DateTimeFormat.prototype;
+    vi.spyOn(dateTimePrototype, "format", "get").mockReturnValue(() => "8월 31일 AM 10:00");
+    const messages: MessageRow[] = [{ id: "message-1", entityType: "lease", entityId: "lease-501", channel: "sandbox_alimtalk", templateKey: "renewal_v1", status: "delivered", guardrailReason: null, scheduledFor: null, createdAt: "2026-08-31T01:00:00Z", updatedAt: "2026-08-31T01:00:01Z", deliveredAt: "2026-08-31T01:00:01Z", retryCount: 0 }];
+    render(<MessagesView />, { wrapper: harness(messages).Wrapper });
+    expect(screen.getByText("8월 31일 오전 10:00")).toBeTruthy();
   });
 });
