@@ -369,6 +369,15 @@ async function initializeSchemaAndSeed(database: AppDatabase) {
       occurred_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS audit_user_time_idx ON audit_logs(user_id, occurred_at DESC);
+    CREATE TABLE IF NOT EXISTS demo_workspaces (
+      id TEXT PRIMARY KEY,
+      owner_id TEXT NOT NULL UNIQUE REFERENCES users(id),
+      operator_id TEXT NOT NULL UNIQUE REFERENCES users(id),
+      variant TEXT NOT NULL CHECK(variant IN ('risk-first', 'agenda-first')),
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS demo_workspaces_expiry_idx ON demo_workspaces(expires_at);
     ALTER TABLE message_dispatches ADD COLUMN IF NOT EXISTS template_version TEXT NOT NULL DEFAULT 'v1';
     ALTER TABLE message_dispatches ADD COLUMN IF NOT EXISTS consent_checked INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE message_dispatches ADD COLUMN IF NOT EXISTS retry_count INTEGER NOT NULL DEFAULT 0;
@@ -383,6 +392,7 @@ async function initializeSchemaAndSeed(database: AppDatabase) {
   await database.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)").run(1, now);
   await database.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)").run(2, now);
   await database.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)").run(3, now);
+  await database.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)").run(4, now);
   await seedDatabase(database);
 }
 

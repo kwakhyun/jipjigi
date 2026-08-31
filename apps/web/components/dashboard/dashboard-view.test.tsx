@@ -10,7 +10,7 @@ import { ownerKeys } from "@/lib/query/keys";
 const snapshot: DashboardSnapshot = {
   generatedAt: "2026-08-31T00:00:00.000Z", hasMutedBriefings: false,
   building: { id: "building-1", name: "가상 건물", address: "가상 주소", totalUnits: 3, occupiedUnits: 2 },
-  metrics: { collectionRate: 50, collectedAmount: 500000, expectedAmount: 1000000, occupiedRate: 66.7, openMaintenance: 0 },
+  metrics: { billingPeriod: "2026-08", collectionRate: 50, collectedAmount: 500000, expectedAmount: 1000000, occupiedRate: 66.7, openMaintenance: 0 },
   briefing: { renewal: { leaseId: "lease-501", unitName: "501호", tenantName: "김가상", daysLeft: 30, currentDeposit: 10000000, currentRent: 500000, suggestedRent: 520000, status: "attention" }, overdue: { chargeId: "charge-203", unitName: "203호", tenantName: "이가상", amount: 500000, daysOverdue: 3, noticeStatus: "not_sent" }, maintenance: null }, recentActivities: [],
 };
 afterEach(cleanup);
@@ -32,5 +32,11 @@ describe("홈의 근거와 발송 진입점", () => {
     render(view({ ...snapshot, hasMutedBriefings: true, briefing: { renewal: null, overdue: null, maintenance: null } }));
     expect(screen.getByText("설정에서 선택한 항목만 표시하고 있어요")).toBeTruthy();
     expect(screen.queryByText(/특이 사항 없이 운영 중/)).toBeNull();
+  });
+  it("새 달에 지난 청구월을 이달로 표현하거나 만료 날짜에 이중 음수를 쓰지 않는다", () => {
+    render(view({ ...snapshot, generatedAt: "2026-09-30T00:00:00.000Z", briefing: { ...snapshot.briefing, renewal: { ...snapshot.briefing.renewal!, daysLeft: -2 } } }));
+    expect(screen.getByText("8월 수납률")).toBeTruthy();
+    expect(screen.getByText("만료 2일 지남")).toBeTruthy();
+    expect(screen.queryByText("D--2")).toBeNull();
   });
 });

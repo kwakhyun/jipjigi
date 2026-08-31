@@ -16,6 +16,7 @@ import { cx } from "@jipjigi/ui";
 import { BrandLockup } from "./brand-lockup";
 import { PageAnalytics } from "./page-analytics";
 import { SessionActions } from "./session-actions";
+import type { BriefingVariant } from "@jipjigi/experiments";
 import { demoLabels, roleLabels } from "@/lib/auth/navigation";
 
 type NavItem = {
@@ -46,7 +47,7 @@ function activePath(pathname: string, href: string) {
   return href === "/app" ? pathname === href : pathname.startsWith(href);
 }
 
-export function AppShell({ children, user, demoEnabled = false }: { children: ReactNode; user: { name: string; email: string; role: "owner" | "operator" }; demoEnabled?: boolean }) {
+export function AppShell({ children, user, demoEnabled = false, demoVariant }: { children: ReactNode; user: { name: string; email: string; role: "owner" | "operator" }; demoEnabled?: boolean; demoVariant?: BriefingVariant | null }) {
   const pathname = usePathname();
   const mainNavigation = user.role === "owner" ? primaryNavigation : operatorNavigation;
   const secondaryNavigation = user.role === "owner" ? ownerSecondaryNavigation : [];
@@ -88,7 +89,7 @@ export function AppShell({ children, user, demoEnabled = false }: { children: Re
           )}
         </header>
         <div className="workspace-account-bar" aria-label="현재 계정과 데모 전환">
-          <span className="workspace-role-label">{demoEnabled ? demoLabels[user.role] : roleLabels[user.role]}</span>
+          <span className="workspace-role-label">{demoEnabled ? demoLabels[user.role] : roleLabels[user.role]}{demoVariant ? <Link className="demo-settings-link" href="/app/settings#demo-reset">체험 설정</Link> : null}</span>
           <SessionActions role={user.role} demoEnabled={demoEnabled} />
         </div>
         <main id="main-content" className="workspace-content" tabIndex={-1}>{children}</main>

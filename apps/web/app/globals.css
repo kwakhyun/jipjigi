@@ -93,6 +93,19 @@ p, h1, h2, h3 { margin-top: 0; }
 .workspace-main-column { min-width: 0; }
 .workspace-account-bar { display: flex; width: 100%; max-width: 1440px; align-items: center; justify-content: space-between; gap: 12px; margin: 0 auto; padding: 12px 32px; border-bottom: 1px solid var(--jj-line); background: var(--jj-surface); }
 .workspace-role-label { flex-shrink: 0; color: var(--jj-purple-dark); font-size: 12px; font-weight: 800; }
+.demo-settings-link { display: inline-flex; min-height: 44px; align-items: center; margin-left: 12px; color: var(--jj-muted); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.demo-controls { scroll-margin-top: 24px; }
+.demo-controls h2 { margin-bottom: 12px; font-size: 18px; }
+.demo-controls-panel p { color: var(--jj-muted); font-size: 13px; line-height: 1.7; word-break: keep-all; }
+.demo-controls-panel form { display: grid; gap: 12px; }
+.demo-controls-panel select { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--jj-line); border-radius: 12px; background: white; font-size: 13px; }
+.demo-controls-panel .field-label { margin: 0; }
+.demo-reset-consent { display: flex; min-height: 44px; align-items: center; gap: 10px; font-size: 13px; line-height: 1.5; }
+.demo-reset-consent input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--jj-purple); }
+.demo-controls-panel .demo-controls-note { margin: 0; font-size: 12px; }
+.demo-controls-panel .button { min-height: 44px; white-space: normal; }
+.demo-measurement-note { margin: -8px 0 24px; padding: 14px 18px; border-radius: 14px; background: var(--jj-purple-soft); color: #52476e; font-size: 13px; line-height: 1.7; word-break: keep-all; }
+.ledger-period-select select { min-height: 44px; padding: 8px 12px; border: 1px solid var(--jj-line); border-radius: 10px; background: var(--jj-surface); }
 .session-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .session-actions .button { min-height: 40px; font-size: 12px; }
 .workspace-content { width: 100%; max-width: 1440px; min-height: 100dvh; margin: 0 auto; }
@@ -552,6 +565,7 @@ p, h1, h2, h3 { margin-top: 0; }
 
 @media (max-width: 820px) {
   .workspace-shell { display: block; }
+  .demo-controls { scroll-margin-top: 86px; }
   .side-navigation { display: none; }
   .workspace-main-column { padding: 62px 0 calc(72px + env(safe-area-inset-bottom)); }
   .workspace-account-bar { flex-wrap: wrap; padding: 10px 16px; }

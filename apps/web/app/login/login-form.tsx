@@ -62,7 +62,7 @@ export function LoginForm({ nextPath, demoEnabled, initialMode = "owner" }: { ne
         {pending ? "로그인하는 중…" : demoEnabled ? `${demoLabels[mode]} 시작하기` : "로그인"}
         {!pending ? <ArrowRightIcon width={18} height={18} aria-hidden="true" /> : null}
       </button>
-      <p className="login-security"><LockClosedIcon width={14} height={14} aria-hidden="true" /> 로그인 상태는 12시간 동안 유지돼요</p>
+      <p className="login-security"><LockClosedIcon width={14} height={14} aria-hidden="true" /> {demoEnabled ? "브라우저별 체험 공간은 생성 후 최대 12시간 유지돼요" : "로그인 상태는 12시간 동안 유지돼요"}</p>
     </form>
   );
 }

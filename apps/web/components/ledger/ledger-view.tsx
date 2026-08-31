@@ -20,12 +20,16 @@ export function LedgerView() {
   const ledger = useQuery(ownerResourceOptions(useOwnerId(), "ledger"));
   const rows = ledger.data ?? [];
   const [filter, setFilter] = useState<Filter>("all");
+  const [selectedPeriod, setSelectedPeriod] = useState("");
+  const periods = useMemo(() => [...new Set(rows.map((row) => row.period))].sort().reverse(), [rows]);
+  const activePeriod = periods.includes(selectedPeriod) ? selectedPeriod : periods[0] ?? "";
+  const periodRows = useMemo(() => rows.filter((row) => row.period === activePeriod), [rows, activePeriod]);
   const operation = useOperationMutation();
   const isPending = operation.isPending;
   const pendingId = operation.variables?.type === "mark_payment" ? operation.variables.chargeId : null;
   const [toast, showToast] = useTransientMessage();
-  const visible = useMemo(() => filter === "all" ? rows : rows.filter((row) => row.status === filter), [filter, rows]);
-  const totals = useMemo(() => rows.reduce(
+  const visible = useMemo(() => filter === "all" ? periodRows : periodRows.filter((row) => row.status === filter), [filter, periodRows]);
+  const totals = useMemo(() => periodRows.reduce(
     (current, row) => {
       current.expected += row.amount;
       if (row.status === "paid") current.collected += row.amount;
@@ -36,7 +40,7 @@ export function LedgerView() {
       return current;
     },
     { expected: 0, collected: 0, overdue: 0, overdueCount: 0 },
-  ), [rows]);
+  ), [periodRows]);
 
   const run = async (row: LedgerRow) => {
     try {
@@ -51,14 +55,15 @@ export function LedgerView() {
   return (
     <>
       <QueryFeedback queries={[ledger]} label="임대 장부" />
-      <section className="summary-grid" aria-label="이달 임대료 요약">
-        <article className="summary-card"><span>청구액</span><strong>{formatWon(totals.expected)}</strong><small>{rows.length}건 청구</small></article>
+      <section className="summary-grid" aria-label="선택한 청구월 임대료 요약">
+        <article className="summary-card"><span>청구액</span><strong>{formatWon(totals.expected)}</strong><small>{periodRows.length}건 청구</small></article>
         <article className="summary-card summary-positive"><span>수납 완료</span><strong>{formatWon(totals.collected)}</strong><small>{totals.expected ? Math.round((totals.collected / totals.expected) * 100) : 0}% 수납</small></article>
         <article className="summary-card summary-warning"><span>미납</span><strong>{formatWon(totals.overdue)}</strong><small>{totals.overdueCount}건 확인 필요</small></article>
       </section>
       <section className="surface-card data-section" aria-labelledby="ledger-list-title">
         <div className="data-section-header">
-          <div><h2 id="ledger-list-title">2026년 8월 임대료</h2><p>입금 상태를 확인하고 필요한 조치를 바로 실행하세요.</p></div>
+          <div><h2 id="ledger-list-title">{activePeriod ? `${activePeriod.slice(0, 4)}년 ${Number(activePeriod.slice(5))}월 임대료` : "임대료 청구 내역"}</h2><p>입금 상태를 확인하고 필요한 조치를 바로 실행하세요.</p></div>
+          {periods.length > 1 ? <label className="ledger-period-select"><span className="sr-only">청구월 선택</span><select aria-label="청구월 선택" value={activePeriod} onChange={(event) => setSelectedPeriod(event.target.value)}>{periods.map((period) => <option key={period} value={period}>{period}</option>)}</select></label> : null}
           <div className="segmented-control" aria-label="납부 상태 필터">
             {(["all", "paid", "overdue"] as const).map((value) => (
               <button key={value} type="button" className={filter === value ? "is-selected" : ""} onClick={() => setFilter(value)} aria-pressed={filter === value}>

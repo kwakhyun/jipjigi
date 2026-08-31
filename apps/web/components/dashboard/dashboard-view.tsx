@@ -24,6 +24,7 @@ import { briefingOptions } from "@/lib/query/options";
 import { useOwnerId } from "@/lib/query/owner-context";
 import { isSessionError } from "@/lib/query/client";
 import { QueryFeedback } from "@/components/query-feedback";
+import { relativeDayLabel } from "@/lib/format/date";
 
 type Building = { id: string; name: string; address: string; totalUnits: number; occupiedUnits: number };
 
@@ -89,6 +90,7 @@ function DashboardContent({ initialBuildingId, buildings, userName }: DashboardP
       overdue={snapshot.briefing.overdue}
       maintenance={snapshot.briefing.maintenance}
       hasMutedBriefings={snapshot.hasMutedBriefings}
+      referenceTime={snapshot.generatedAt}
     />
   );
   const briefings: ReactNode[] = value.experiment.variant === "risk-first" ? [renewalSection, agendaSection] : [agendaSection, renewalSection];
@@ -127,8 +129,8 @@ function DashboardContent({ initialBuildingId, buildings, userName }: DashboardP
         </div>
       </section>
 
-      <section className="metric-strip" aria-label="이달 운영 지표">
-        <Metric label="수납률" value={`${snapshot.metrics.collectionRate}%`} detail={`${formatCompactWon(snapshot.metrics.collectedAmount)} 수납`} tone="purple" />
+      <section className="metric-strip" aria-label="최근 청구월 운영 지표">
+        <Metric label={snapshot.metrics.billingPeriod ? `${Number(snapshot.metrics.billingPeriod.slice(5))}월 수납률` : "수납률"} value={`${snapshot.metrics.collectionRate}%`} detail={`${formatCompactWon(snapshot.metrics.collectedAmount)} 수납`} tone="purple" />
         <Metric label="입주율" value={`${snapshot.metrics.occupiedRate}%`} detail={`${snapshot.building.occupiedUnits}/${snapshot.building.totalUnits}세대`} tone="green" />
         <Metric label="진행 중 수리" value={`${snapshot.metrics.openMaintenance}건`} detail="처리 상태 확인" tone="coral" />
       </section>
@@ -164,7 +166,7 @@ function RenewalPriority({ renewal, onEvidence }: { renewal: NonNullable<Dashboa
     <section className="surface-card priority-card" aria-labelledby="priority-heading">
       <div className="section-heading-row">
         <div><span className="section-kicker kicker-coral">가장 먼저 확인하세요</span><h2 id="priority-heading">계약 만료가 가까워요</h2></div>
-        <span className="risk-pill">D-{renewal.daysLeft}</span>
+        <span className="risk-pill">{renewal.daysLeft < 0 ? `만료 ${Math.abs(renewal.daysLeft)}일 지남` : renewal.daysLeft === 0 ? "오늘 만료" : `D-${renewal.daysLeft}`}</span>
       </div>
       <div className="priority-content">
         <Image className="priority-asset" src="/assets/jipjigi/priority-renewal-icon.png" width={104} height={104} alt="계약 갱신 일정 알림" />
@@ -189,7 +191,7 @@ function RenewalPriority({ renewal, onEvidence }: { renewal: NonNullable<Dashboa
   );
 }
 
-function Agenda({ overdue, maintenance, hasMutedBriefings }: { overdue: DashboardSnapshot["briefing"]["overdue"]; maintenance: DashboardSnapshot["briefing"]["maintenance"]; hasMutedBriefings: boolean }) {
+function Agenda({ overdue, maintenance, hasMutedBriefings, referenceTime }: { overdue: DashboardSnapshot["briefing"]["overdue"]; maintenance: DashboardSnapshot["briefing"]["maintenance"]; hasMutedBriefings: boolean; referenceTime: string }) {
   return (
     <section className="surface-card agenda-card" aria-labelledby="agenda-heading">
       <div className="section-heading-row"><div><span className="section-kicker">오늘 끝낼 일</span><h2 id="agenda-heading">운영 일정</h2></div><span className="count-badge">{[overdue, maintenance].filter(Boolean).length}</span></div>
@@ -204,7 +206,7 @@ function Agenda({ overdue, maintenance, hasMutedBriefings }: { overdue: Dashboar
         {maintenance ? (
           <article className="agenda-item">
             <span className="agenda-icon icon-purple"><GearIcon /></span>
-            <div><span className="agenda-time">오늘 접수</span><h3>{maintenance.unitName} 수리 요청</h3><p>{maintenance.title}</p></div>
+            <div><span className="agenda-time">{relativeDayLabel(maintenance.requestedAt, referenceTime)} 접수</span><h3>{maintenance.unitName} 수리 요청</h3><p>{maintenance.title}</p></div>
             <Link className="button button-secondary button-small" href={`/app/maintenance?schedule=${encodeURIComponent(maintenance.requestId)}#schedule-${encodeURIComponent(maintenance.requestId)}`}>{maintenance.status === "received" ? "일정 정하기" : "일정 확인"}</Link>
           </article>
         ) : <div className="empty-inline"><CheckCircledIcon /> {hasMutedBriefings ? "표시할 수리 일정이 없어요. 수리 목록과 알림 설정을 확인해 주세요." : "처리 중인 수리 요청이 없어요."}</div>}

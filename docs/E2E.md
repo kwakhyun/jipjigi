@@ -1,0 +1,55 @@
+# 실제 Next.js 웹앱 E2E
+
+## 현재 상태
+
+2026-08-31 09:19 KST, `apps/web`의 실제 프로덕션 빌드에서 핵심 여정 **4개가 모두 통과했습니다**. 마지막 실행은 9.4초였으며 재시도하지 않았습니다. Node.js 22.21.0, Playwright 1.61.1과 Chromium에서 데스크톱 1440 × 1000, 모바일 393 × 850 뷰포트를 사용했습니다. 실제 모바일 기기나 WebKit, Firefox 검증은 아닙니다.
+
+잠금 파일 갱신, 타입 검사, 웹 단위 및 통합 테스트 125개, 공통 패키지 테스트 8개, 프로덕션 빌드와 10개 경로의 번들 예산도 통과했습니다. 이 문서는 로컬 실행 기록입니다. 원격 CI와 공개 배포 상태는 제출할 커밋의 GitHub Actions 결과와 Vercel 배포 SHA를 대조해 확인합니다.
+
+기존 `prototype`의 Playwright 10개는 별도 모바일 시안을 검사합니다. 실제 Next.js의 세션, Server Action, DB와 역할 전환을 검증한 결과로 대신하지 않습니다.
+
+## 실행
+
+Node.js 22와 pnpm 10.29.2를 사용합니다.
+
+```bash
+pnpm install
+pnpm verify
+pnpm test:e2e:setup
+pnpm test:e2e
+```
+
+`pnpm verify`가 타입, 단위 및 통합 테스트, 빌드와 번들 예산을 확인합니다. E2E는 Docker와 같은 `.next/standalone/apps/web/server.js`를 실행합니다. 실행기가 생성된 standalone 폴더에 `public`과 `.next/static`을 복사하므로 페이지와 정적 자산을 함께 검증합니다. Chromium이 필요하며 Linux CI에서는 OS 의존성을 포함해 설치합니다.
+
+## 검사하는 여정
+
+| 시나리오 | 확인할 경계 |
+| --- | --- |
+| 계약에서 갱신 메시지 접수 | 로그인 → 계약 25건 조회 → 대상 미리보기 → 샌드박스 접수 → 새로고침 후 메시지와 계약 타임라인 유지 → 로그아웃 후 그로스 로그인 → 자신의 메시지 집계 |
+| 두 방문자 동시 이용 | 별도 브라우저 컨텍스트 → 다른 계정과 리소스 ID → 타인 수리 변경 404 → 본인 일정 저장 → 상대 공간의 원래 상태와 조치 수 0 유지 |
+| 두 홈 구성 재현 | 체험 설정 → 초기화 동의 → 새 사용자 ID → 일정 우선안과 위험 우선안 순서 확인 → 계약 시드와 빈 발송함 확인 |
+| 모바일 탐색과 로그아웃 | 393px 화면 → 모바일 계약과 메시지 메뉴 → 가로 넘침 없음 → 체험 설정 제목이 고정 헤더에 가리지 않음 → 로그아웃 → 업무 API 401 |
+
+테스트는 UI 조작 후 새로고침과 인증된 API의 결과를 대조합니다. DB를 직접 고쳐 화면의 성공 상태를 만들지 않습니다. 외부 메시지 전달 완료는 이 E2E 범위가 아니며 HMAC 웹훅의 로컬 통합 테스트로 별도 확인합니다.
+
+## 운영 데이터 보호
+
+- 주소는 `http://localhost:3118`로 고정하며 운영 URL을 받는 옵션은 없습니다. Playwright의 API 호출도 로컬 `Secure` 쿠키를 전달하도록 숫자 IP 대신 `localhost`를 사용합니다.
+- 실행마다 `mkdtemp`로 임시 디렉터리를 만들고 그 안에 PGlite를 생성합니다. 시작 전에 프로덕션 빌드의 존재를 확인합니다.
+- 외부 DB와 Redis 환경 변수는 빈 문자열로 덮어씁니다. 로컬 전용 서명 키와 데모 허용 값을 명시하고 `VERCEL_ENV=preview`에서 메모리 요청 제한을 사용합니다.
+- 기존 서버를 재사용하지 않습니다. 포트를 다른 서버가 쓰고 있으면 덮어쓰거나 종료하지 않고 실패합니다.
+- 서버 종료 시 이 실행에서 생성한 임시 디렉터리만 제거합니다. 작업공간이나 홈 디렉터리를 삭제 대상으로 사용하지 않습니다.
+- 공개 데모의 동일한 소유권 검사, 요청 제한과 초기화 동의 절차를 통과합니다. 테스트용 우회 인증 API는 없습니다.
+- 결제, 입금 확인과 실제 알림톡 발송은 이 브라우저 시나리오에 포함하지 않습니다.
+
+## CI와 실패 조사
+
+GitHub Actions의 `production-app` 작업에서 빌드와 번들 검사 다음에 E2E를 실행하도록 구성했습니다. `protected-prototype` 작업은 기존대로 유지합니다. 재시도는 끄고 작업자 1개로 실행해 로컬 로그인 제한과 충돌하지 않게 합니다. 첫 실패에서 멈추도록 `maxFailures: 1`을 설정했습니다.
+
+실패하면 `apps/web/playwright-report`와 `apps/web/test-results`에 보고서, 화면과 트레이스를 남깁니다. CI는 이를 `web-e2e-failure` 아티팩트로 3일 보관합니다. 테스트에는 실제 개인정보가 없지만 아티팩트 역시 외부 고객 데이터로 실행하지 않습니다.
+
+Vercel의 빌드는 기존 `pnpm verify`를 유지합니다. **GitHub E2E 성공을 기다리는 자동 승격 규칙은 별도로 설정하지 않았습니다.** 제출 전 해당 커밋의 CI 통과와 Vercel 배포 SHA를 함께 확인해야 합니다. GitHub Actions 설정 추가만으로 현재 운영 배포가 검증됐다고 간주하지 않습니다.
+
+구현: [Playwright 설정](../apps/web/playwright.config.ts), [격리된 서버 실행기](../apps/web/scripts/start-e2e-server.mjs), [핵심 여정](../apps/web/e2e/owner-journey.spec.ts), [CI](../.github/workflows/ci.yml).
+
+구성 참고: [Playwright CI 가이드](https://playwright.dev/docs/ci-intro), [GitHub 아티팩트 업로드](https://github.com/actions/upload-artifact).

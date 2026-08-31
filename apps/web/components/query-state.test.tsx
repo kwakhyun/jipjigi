@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LedgerRow } from "@/lib/data/repository";
 import { ownerQueryHarness } from "@/lib/query/test-harness";
@@ -16,6 +16,26 @@ beforeEach(() => { submit.mockReset(); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe("실제 Query 캐시를 사용하는 운영 화면", () => {
+  it("최근 청구월을 기본으로 표시하고 월 선택에 맞춰 목록과 합계를 함께 바꾼다", () => {
+    const nextMonth = { ...charge, id: "charge-204", period: "2026-09", dueDate: "2026-09-20", amount: 600000, unitName: "204호", status: "paid" as const };
+    const query = ownerQueryHarness({ ledger: [charge, nextMonth] });
+    vi.stubGlobal("fetch", query.fetch);
+    render(<LedgerView />, { wrapper: query.Wrapper });
+    expect(screen.getByRole("heading", { name: "2026년 9월 임대료" })).toBeTruthy();
+    expect(screen.queryByText("203호")).toBeNull();
+    expect(screen.getByText("204호")).toBeTruthy();
+    const summary = screen.getByRole("region", { name: "선택한 청구월 임대료 요약" });
+    expect(within(summary).getByText("100% 수납")).toBeTruthy();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "청구월 선택" }), { target: { value: "2026-08" } });
+    expect(screen.getByRole("heading", { name: "2026년 8월 임대료" })).toBeTruthy();
+    expect(screen.getByText("203호")).toBeTruthy();
+    expect(screen.queryByText("204호")).toBeNull();
+    expect(within(summary).getByText("0% 수납")).toBeTruthy();
+    expect(within(summary).getByText("1건 확인 필요")).toBeTruthy();
+    expect(submit).not.toHaveBeenCalled();
+  });
+
   it("입금은 서버 확인 뒤 반영하고 공유 중인 메시지 대상과 브리핑 캐시도 갱신한다", async () => {
     const query = ownerQueryHarness({ ledger: [charge], messages: [], contracts: [], preferences });
     const read = vi.fn(query.fetch);

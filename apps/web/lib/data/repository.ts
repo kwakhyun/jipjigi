@@ -209,6 +209,7 @@ export async function getDashboardSnapshot(userId: string, buildingId?: string):
     generatedAt: new Date().toISOString(),
     building: { ...building, occupiedUnits },
     metrics: {
+      billingPeriod: latestPeriod?.period ?? null,
       collectionRate: !money?.expectedAmount ? 0 : Math.round((money.collectedAmount / money.expectedAmount) * 1000) / 10,
       collectedAmount: money?.collectedAmount ?? 0,
       expectedAmount: money?.expectedAmount ?? 0,
@@ -376,22 +377,24 @@ export async function getOrCreateExperimentAssignment(userId: string): Promise<B
   return variant;
 }
 
-export async function getGrowthOverview() {
+export async function getGrowthOverview(ownerId?: string) {
   const db = await getDatabase();
   const eventCounts = await db
     .prepare(
       `SELECT name, COUNT(*)::int AS count FROM product_events
-       WHERE user_id IS NOT NULL AND occurred_at::timestamptz >= CURRENT_TIMESTAMP - INTERVAL '7 days'
+       WHERE user_id IS NOT NULL AND user_id = COALESCE(?, user_id)
+         AND occurred_at::timestamptz >= CURRENT_TIMESTAMP - INTERVAL '7 days'
        GROUP BY name ORDER BY count DESC`,
     )
-    .all<{ name: string; count: number }>();
+    .all<{ name: string; count: number }>(ownerId ?? null);
   const recentEvents = await db
     .prepare(
       `SELECT id, name, path, properties_json AS propertiesJson,
         release_version AS releaseVersion, experiment_key AS experimentKey,
         variant, user_segment AS userSegment, occurred_at AS occurredAt
        FROM product_events
-       WHERE user_id IS NOT NULL AND occurred_at::timestamptz >= CURRENT_TIMESTAMP - INTERVAL '7 days'
+       WHERE user_id IS NOT NULL AND user_id = COALESCE(?, user_id)
+         AND occurred_at::timestamptz >= CURRENT_TIMESTAMP - INTERVAL '7 days'
        ORDER BY occurred_at DESC LIMIT 20`,
     )
     .all<{
@@ -404,24 +407,25 @@ export async function getGrowthOverview() {
       variant: string | null;
       userSegment: string;
       occurredAt: string;
-    }>();
+    }>(ownerId ?? null);
   const messageStats = await db
     .prepare(
       `SELECT status, COUNT(*)::int AS count FROM message_dispatches
-       WHERE created_at::timestamptz >= CURRENT_TIMESTAMP - INTERVAL '7 days' GROUP BY status`,
+       WHERE user_id = COALESCE(?, user_id)
+         AND created_at::timestamptz >= CURRENT_TIMESTAMP - INTERVAL '7 days' GROUP BY status`,
     )
-    .all<{ status: string; count: number }>();
+    .all<{ status: string; count: number }>(ownerId ?? null);
   const assignmentCounts = await db
     .prepare(
       `SELECT variant, COUNT(*)::int AS count FROM experiment_assignments
-       WHERE experiment_key = ? GROUP BY variant`,
+       WHERE experiment_key = ? AND user_id = COALESCE(?, user_id) GROUP BY variant`,
     )
-    .all<{ variant: BriefingVariant; count: number }>(briefingPriorityExperiment.key);
+    .all<{ variant: BriefingVariant; count: number }>(briefingPriorityExperiment.key, ownerId ?? null);
   const experimentResults = await db.prepare(
     `WITH exposures AS (
        SELECT user_id, variant, MIN(occurred_at) AS exposedAt
        FROM product_events
-       WHERE experiment_key = ? AND name = 'experiment_exposed'
+       WHERE experiment_key = ? AND name = 'experiment_exposed' AND user_id = COALESCE(?, user_id)
          AND user_id IS NOT NULL AND user_segment = 'owner'
          AND occurred_at::timestamptz >= CURRENT_TIMESTAMP - INTERVAL '7 days'
          AND variant IN ('risk-first', 'agenda-first')
@@ -440,16 +444,17 @@ export async function getGrowthOverview() {
      SELECT e.variant, COUNT(*)::int AS exposedUsers, COUNT(c.user_id)::int AS actionUsers
      FROM exposures e LEFT JOIN converted c ON c.user_id = e.user_id AND c.variant = e.variant
      GROUP BY e.variant ORDER BY e.variant`,
-  ).all<{ variant: BriefingVariant; exposedUsers: number; actionUsers: number }>(briefingPriorityExperiment.key, briefingPriorityExperiment.key, briefingPriorityExperiment.key);
+  ).all<{ variant: BriefingVariant; exposedUsers: number; actionUsers: number }>(briefingPriorityExperiment.key, ownerId ?? null, briefingPriorityExperiment.key, briefingPriorityExperiment.key);
   const deliveredRecipients = await db.prepare(
     `SELECT COUNT(DISTINCT CASE WHEN md.entity_type = 'lease' THEN md.entity_id ELSE c.lease_id END)::int AS count
      FROM message_dispatches md LEFT JOIN charges c ON md.entity_type = 'charge' AND c.id = md.entity_id
-     WHERE md.status = 'delivered' AND md.delivered_at::timestamptz BETWEEN CURRENT_TIMESTAMP - INTERVAL '7 days' AND CURRENT_TIMESTAMP`,
-  ).get<{ count: number }>();
+     WHERE md.user_id = COALESCE(?, md.user_id) AND md.status = 'delivered'
+       AND md.delivered_at::timestamptz BETWEEN CURRENT_TIMESTAMP - INTERVAL '7 days' AND CURRENT_TIMESTAMP`,
+  ).get<{ count: number }>(ownerId ?? null);
   const optOuts = await db.prepare(
     `SELECT COUNT(DISTINCT o.lease_id)::int AS count
      FROM crm_opt_outs o
-     WHERE o.occurred_at::timestamptz >= CURRENT_TIMESTAMP - INTERVAL '7 days'
+     WHERE o.user_id = COALESCE(?, o.user_id) AND o.occurred_at::timestamptz >= CURRENT_TIMESTAMP - INTERVAL '7 days'
        AND EXISTS (
          SELECT 1 FROM message_dispatches md
          LEFT JOIN charges c ON md.entity_type = 'charge' AND c.id = md.entity_id
@@ -459,7 +464,7 @@ export async function getGrowthOverview() {
            AND o.occurred_at::timestamptz BETWEEN md.delivered_at::timestamptz
              AND LEAST(CURRENT_TIMESTAMP, md.delivered_at::timestamptz + INTERVAL '7 days')
        )`,
-  ).get<{ count: number }>();
+  ).get<{ count: number }>(ownerId ?? null);
   const acceptedAttempts = messageStats
     .filter((item) => ["accepted", "delivered", "failed"].includes(item.status))
     .reduce((sum, item) => sum + item.count, 0);
@@ -476,13 +481,13 @@ export async function getGrowthOverview() {
   return { assignmentCounts, experimentResults, eventCounts, recentEvents, messageStats, crmGuardrails };
 }
 
-export async function getWebVitalsOverview() {
+export async function getWebVitalsOverview(userIds?: readonly string[]) {
   const database = await getDatabase();
   const rows = await database
     .prepare(
       `SELECT name, value, rating, path, occurred_at AS occurredAt
        FROM web_vitals
-       WHERE name IN ('LCP', 'INP', 'CLS')
+       WHERE name IN ('LCP', 'INP', 'CLS') AND (?::text[] IS NULL OR user_id = ANY(?::text[]))
          AND occurred_at::timestamptz >= CURRENT_TIMESTAMP - INTERVAL '7 days'
        ORDER BY occurred_at DESC`,
     )
@@ -492,7 +497,7 @@ export async function getWebVitalsOverview() {
       rating: "good" | "needs-improvement" | "poor";
       path: string;
       occurredAt: string;
-    }>();
+    }>(userIds ?? null, userIds ?? null);
 
   const metrics = (["LCP", "INP", "CLS"] as const).map((name) => {
     const samples = rows.filter((row) => row.name === name);

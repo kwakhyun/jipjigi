@@ -34,6 +34,17 @@ jobs:
           VERCEL_ENV: production
       - run: pnpm build
       - run: pnpm bundle:check
+      - run: pnpm --filter @jipjigi/web exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: web-e2e-failure
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          retention-days: 3
+          if-no-files-found: ignore
 
   protected-prototype:
     runs-on: ubuntu-latest

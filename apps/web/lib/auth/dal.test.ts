@@ -34,15 +34,16 @@ afterAll(async () => {
 
 describe("API 세션 재검증", () => {
   it("토큰이 발급된 뒤 역할이 바뀌면 데이터베이스의 현재 역할을 사용한다", async () => {
-    const token = await createSessionToken({ userId: "owner-1", name: "김서준", role: "owner" });
+    const token = await createSessionToken({ userId: "auth-test-owner", name: "김서준", role: "owner" });
     const database = await getDatabase();
-    await database.prepare("UPDATE users SET role = 'operator' WHERE id = ?").run("owner-1");
+    await database.prepare("INSERT INTO users (id, email, name, password_hash, role, created_at) VALUES ('auth-test-owner', 'auth@example.test', '김서준', '!', 'owner', ?)").run(new Date().toISOString());
+    await database.prepare("UPDATE users SET role = 'operator' WHERE id = ?").run("auth-test-owner");
 
     const session = await sessionFromRequest(new Request("http://localhost/api/operations", {
-      headers: { cookie: `jipjigi_session=${encodeURIComponent(token)}` },
+      headers: { cookie: `jipjigi_demo_workspace=test-workspace; jipjigi_session=${encodeURIComponent(token)}` },
     }));
 
-    expect(session).toMatchObject({ userId: "owner-1", role: "operator" });
+    expect(session).toMatchObject({ userId: "auth-test-owner", role: "operator" });
   });
 
   it("삭제된 사용자의 아직 만료되지 않은 토큰을 거부한다", async () => {
@@ -61,5 +62,17 @@ describe("API 세션 재검증", () => {
 
     expect(session).toBeNull();
     expect(browserSession).toBeNull();
+  });
+  it("기존 공유 데모 세션과 만료된 개인 공간 세션을 거부한다", async () => {
+    const { enterDemoWorkspace } = await import("@/lib/demo/workspace");
+    const workspace = await enterDemoWorkspace();
+    const token = await createSessionToken({ userId: workspace.ownerId, name: "김서준", role: "owner" });
+    const request = (value: string) => new Request("http://localhost/api/operations", { headers: { cookie: `jipjigi_session=${value}` } });
+    expect(await sessionFromRequest(request(token))).toMatchObject({ userId: workspace.ownerId });
+    const database = await getDatabase();
+    await database.prepare("UPDATE demo_workspaces SET expires_at = ? WHERE id = ?").run(new Date(Date.now() - 1000).toISOString(), workspace.id);
+    expect(await sessionFromRequest(request(token))).toBeNull();
+    const old = await createSessionToken({ userId: "owner-1", name: "김서준", role: "owner" });
+    expect(await sessionFromRequest(request(old))).toBeNull();
   });
 });

@@ -95,6 +95,7 @@ export type DashboardSnapshot = {
   hasMutedBriefings: boolean;
   building: BuildingSummary;
   metrics: {
+    billingPeriod: string | null;
     collectionRate: number;
     collectedAmount: number;
     expectedAmount: number;

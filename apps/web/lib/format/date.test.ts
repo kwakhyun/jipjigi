@@ -15,4 +15,7 @@ describe("date formatting", () => {
     expect(formatKoreanScheduleDateTime("2026-09-01T01:30:00.000Z")).toBe("9월 1일 오전 10:30");
     expect(formatKoreanScheduleDateTime("2026-09-01T06:05:00.000Z")).toBe("9월 1일 오후 3:05");
   });
+  it("counts Seoul calendar boundaries rather than elapsed 24-hour periods", () => {
+    expect(relativeDayLabel("2026-08-31T14:50:00.000Z", "2026-08-31T15:10:00.000Z")).toBe("1일 전");
+  });
 });

@@ -5,6 +5,7 @@ import { SecurityCard, SettingsForm } from "@/components/settings/settings-form"
 import { requireSession } from "@/lib/auth/dal";
 import { getPreferences } from "@/lib/data/repository";
 import { SessionActions } from "@/components/session-actions";
+import { DemoControls } from "@/components/demo-controls";
 
 export const metadata: Metadata = { title: "설정" };
 export const dynamic = "force-dynamic";
@@ -25,6 +26,7 @@ export default async function SettingsPage() {
           quietHoursEnd: preferences.quietHoursEnd,
         }} /> : null}
         <div className="settings-side-column">
+          {user.demoWorkspace ? <DemoControls key={user.demoWorkspace.id} variant={user.demoWorkspace.variant} /> : null}
           <IntegrationCard />
           {user.role === "operator" ? <SecurityCard /> : null}
           <section className="surface-card account-card"><div><span className="avatar">{user.name.slice(0, 1)}</span><span><strong>{user.name}</strong><small>{user.email}</small></span></div><SessionActions role={user.role} /></section>

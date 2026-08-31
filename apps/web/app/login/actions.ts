@@ -6,8 +6,9 @@ import { revalidatePath } from "next/cache";
 import { redirect, RedirectType } from "next/navigation";
 import { z } from "zod";
 import { getUserByEmail } from "@/lib/data/repository";
-import { clearSessionCookie, setSessionCookie } from "@/lib/auth/session";
+import { clearSessionCookie, savedDemoWorkspaceId, setDemoWorkspaceCookie, setSessionCookie } from "@/lib/auth/session";
 import { postLoginPath } from "@/lib/auth/navigation";
+import { demoEnabled, DemoWorkspaceError, enterDemoWorkspace, isDemoCredential } from "@/lib/demo/workspace";
 import { rateLimit } from "@/lib/security/request";
 
 const INVALID_PASSWORD_HASH = "$2b$10$DeJG5bLgtjnZUZjIwiEzc.BVI2AJ70GX2IPesuIlqbTMW6pbT5zV.";
@@ -40,7 +41,19 @@ export async function loginAction(_state: LoginState, formData: FormData): Promi
   const valid = await bcrypt.compare(parsed.data.password, user?.passwordHash ?? INVALID_PASSWORD_HASH);
   if (!user || !valid) return { error: "이메일 또는 비밀번호가 올바르지 않습니다.", fields: { email: parsed.data.email } };
 
-  await setSessionCookie({ userId: user.id, name: user.name, role: user.role });
+  let userId = user.id;
+  if (isDemoCredential(user.id)) {
+    if (!demoEnabled()) return { error: "현재 데모 로그인을 제공하지 않습니다." };
+    try {
+      const workspace = await enterDemoWorkspace(await savedDemoWorkspaceId());
+      userId = user.role === "owner" ? workspace.ownerId : workspace.operatorId;
+      await setDemoWorkspaceCookie(workspace.id, workspace.expiresAt);
+    } catch (error) {
+      if (error instanceof DemoWorkspaceError) return { error: error.message };
+      throw error;
+    }
+  }
+  await setSessionCookie({ userId, name: user.name, role: user.role });
   revalidatePath("/app", "layout");
   redirect(postLoginPath(user.role, parsed.data.next), RedirectType.replace);
 }
@@ -49,7 +62,7 @@ export async function logoutAction(formData: FormData) {
   await clearSessionCookie();
   revalidatePath("/app", "layout");
   const mode = formData.get("mode");
-  const demoEnabled = process.env.NODE_ENV !== "production" || process.env.ALLOW_DEMO_AUTH === "true";
-  const destination = demoEnabled && (mode === "owner" || mode === "operator") ? `/login?mode=${mode}` : "/login";
+  // Keep the signed workspace cookie so the other role sees this visitor's work.
+  const destination = demoEnabled() && (mode === "owner" || mode === "operator") ? `/login?mode=${mode}` : "/login";
   redirect(destination, RedirectType.replace);
 }

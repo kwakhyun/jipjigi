@@ -3,6 +3,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   user: vi.fn(), compare: vi.fn(), setSession: vi.fn(), clearSession: vi.fn(),
   revalidate: vi.fn(), redirect: vi.fn(), rateLimit: vi.fn(),
+  savedWorkspace: vi.fn(), setWorkspace: vi.fn(), enterWorkspace: vi.fn(),
 }));
 
 vi.mock("bcryptjs", () => ({ default: { compare: mocks.compare } }));
@@ -10,7 +11,13 @@ vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidate }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect, RedirectType: { replace: "replace" } }));
 vi.mock("@/lib/data/repository", () => ({ getUserByEmail: mocks.user }));
-vi.mock("@/lib/auth/session", () => ({ setSessionCookie: mocks.setSession, clearSessionCookie: mocks.clearSession }));
+vi.mock("@/lib/auth/session", () => ({ setSessionCookie: mocks.setSession, clearSessionCookie: mocks.clearSession, savedDemoWorkspaceId: mocks.savedWorkspace, setDemoWorkspaceCookie: mocks.setWorkspace }));
+vi.mock("@/lib/demo/workspace", () => ({
+  isDemoCredential: (id: string) => id === "owner-1" || id === "operator-1",
+  demoEnabled: () => process.env.NODE_ENV !== "production" || process.env.ALLOW_DEMO_AUTH === "true",
+  enterDemoWorkspace: mocks.enterWorkspace,
+  DemoWorkspaceError: class extends Error {},
+}));
 vi.mock("@/lib/security/request", () => ({ rateLimit: mocks.rateLimit }));
 
 import { loginAction, logoutAction } from "./actions";
@@ -19,6 +26,8 @@ beforeEach(() => {
   vi.resetAllMocks();
   mocks.compare.mockResolvedValue(true);
   mocks.rateLimit.mockResolvedValue({ allowed: true });
+  mocks.savedWorkspace.mockResolvedValue("saved-workspace");
+  mocks.enterWorkspace.mockResolvedValue({ id: "saved-workspace", ownerId: "isolated-owner", operatorId: "isolated-operator", expiresAt: "2026-09-01T00:00:00Z" });
   mocks.redirect.mockImplementation((path: string) => { throw new Error(`NEXT_REDIRECT:${path}`); });
 });
 afterEach(() => vi.unstubAllEnvs());
@@ -38,7 +47,8 @@ describe("로그인과 로그아웃의 계정 전환", () => {
   ] as const)("%s 계정의 실제 권한으로 세션과 이동 경로를 갱신한다", async (role, next, destination) => {
     mocks.user.mockResolvedValue({ id: `${role}-1`, name: "데모", role, passwordHash: "hash" });
     await expect(loginAction({}, loginForm(next))).rejects.toThrow(`NEXT_REDIRECT:${destination}`);
-    expect(mocks.setSession).toHaveBeenCalledWith({ userId: `${role}-1`, name: "데모", role });
+    expect(mocks.setSession).toHaveBeenCalledWith({ userId: `isolated-${role}`, name: "데모", role });
+    expect(mocks.enterWorkspace).toHaveBeenCalledWith("saved-workspace");
     expect(mocks.revalidate).toHaveBeenCalledWith("/app", "layout");
     expect(mocks.redirect).toHaveBeenCalledWith(destination, "replace");
   });
@@ -49,6 +59,7 @@ describe("로그인과 로그아웃의 계정 전환", () => {
     expect((await loginAction({}, loginForm("/app"))).error).toBe("이메일 또는 비밀번호가 올바르지 않습니다.");
     expect(mocks.setSession).not.toHaveBeenCalled();
     expect(mocks.clearSession).not.toHaveBeenCalled();
+    expect(mocks.enterWorkspace).not.toHaveBeenCalled();
     expect(mocks.redirect).not.toHaveBeenCalled();
   });
 
@@ -77,5 +88,13 @@ describe("로그인과 로그아웃의 계정 전환", () => {
     form.set("mode", "operator");
     await expect(logoutAction(form)).rejects.toThrow("NEXT_REDIRECT:/login");
     expect(mocks.redirect).toHaveBeenCalledWith("/login", "replace");
+  });
+  it("데모 비활성화 시 과거에 저장된 공용 계정도 로그인하지 못한다", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ALLOW_DEMO_AUTH", "false");
+    mocks.user.mockResolvedValue({ id: "owner-1", name: "데모", role: "owner", passwordHash: "hash" });
+    expect((await loginAction({}, loginForm("/app"))).error).toBe("현재 데모 로그인을 제공하지 않습니다.");
+    expect(mocks.enterWorkspace).not.toHaveBeenCalled();
+    expect(mocks.setSession).not.toHaveBeenCalled();
   });
 });

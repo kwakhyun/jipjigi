@@ -25,15 +25,26 @@
 
 로그인 화면의 **그로스 데모**는 서비스 운영자용 계정입니다. 개별 임대 계약을 관리하려면 **임대인 데모**를 선택하세요. 업무 화면 상단의 반대쪽 데모 전환 버튼을 누르면 현재 계정에서 로그아웃한 뒤 해당 데모가 선택된 로그인 화면으로 이동합니다. 일반 로그아웃 버튼도 두 역할에 공통으로 제공됩니다.
 
+이 저장소 버전부터 공개 계정은 체험 입장에만 사용합니다. 첫 로그인 때 브라우저별 작업공간과 두 역할의 전용 계정을 만듭니다. 다른 방문자의 조치는 내 계약이나 관제에 섞이지 않으며, 같은 브라우저에서 역할을 바꾸면 자신의 체험 결과를 이어서 볼 수 있습니다. 체험 공간은 생성 후 최대 12시간 유지됩니다. 쿠키를 지우거나 다른 브라우저를 사용하면 새 공간으로 시작합니다.
+
+### 3분 체험 순서
+
+1. **임대인 데모**로 로그인합니다. 현재 날짜를 기준으로 만료 28일 전인 501호, 미납 203호와 수리 요청 302호가 준비됩니다.
+2. **계약 관리 → 갱신 안내 확인 → 발송 조건 확인 후 접수**로 이동합니다. 새로고침 후에도 메시지와 계약의 연락 기록이 유지되는지 확인합니다. 제한 시간에는 예약으로 저장되며 실제 알림톡은 발송하지 않습니다.
+3. **그로스 데모로 전환**한 뒤 다시 로그인합니다. 방금 자신의 공간에서 발생한 메시지 요청과 행동 로그를 확인합니다. 빈 지표는 가짜 수치 대신 수집 대기로 표시합니다.
+4. **임대인 데모로 전환**해 로그인한 뒤 **체험 설정**에서 홈 구성을 선택합니다. 초기화에 동의하면 깨끗한 공간으로 다시 시작해 위험 우선안과 일정 우선안을 각각 확인할 수 있습니다. 이전 체험 기록은 삭제됩니다.
+
 계약 조회와 데모 전환은 [회귀 검증 기록](docs/audits/2026-08-31-contracts-and-demo-sessions.md), 이벤트 검증은 [신뢰 경계 개선 기록](docs/audits/2026-08-31-trust-and-consistency.md), 운영 데이터 동기화는 [Query 적용 결정과 검증](docs/QUERY-STATE.md)에 정리했습니다. 기능 설명은 이 저장소 버전을 기준으로 하며, 라이브 반영 여부는 해당 커밋의 GitHub Actions와 Vercel 배포 결과로 확인합니다.
 
 ## 제품 화면
 
-| 임대인 홈 | 그로스 관제 |
+| 계약 만료 먼저 보기 | 오늘 일정 먼저 보기 |
 | --- | --- |
-| ![계약 만료 위험과 오늘 할 일을 보여주는 집지기 모바일 홈](.design-qa/mobile-home-final.jpg) | ![A/B 테스트와 사용자 행동 지표를 보여주는 집지기 그로스 관제 화면](.design-qa/operator-growth-final.jpg) |
+| ![만료 28일 전 계약과 갱신 안내를 먼저 보여주는 모바일 홈](.design-qa/portfolio-readiness/owner-risk-mobile.png) | ![오늘 확인할 수리와 운영 일정을 먼저 보여주는 모바일 홈](.design-qa/portfolio-readiness/owner-agenda-mobile.png) |
 
-그로스 관제의 제품 이벤트는 데모 시나리오에서 생성됩니다. Core Web Vitals는 데모를 실제로 연 브라우저에서 수집하지만, 외부 사용자 트래픽의 성과를 뜻하지 않습니다.
+![임대인 데모의 메시지 접수 1건을 같은 체험 공간에서 확인하는 그로스 관제](.design-qa/portfolio-readiness/growth-desktop.png)
+
+2026-08-31 로컬 프로덕션 빌드에서 직접 캡처했습니다. 두 홈 구성은 개인 데모 초기화로 재현했고, 그로스 관제의 메시지 1건은 화면에서 접수한 샌드박스 요청입니다. 실제 고객의 실험 성과가 아닙니다. [설정과 메시지 화면을 포함한 검증 기록](design-qa.md)에서 환경과 범위를 확인할 수 있습니다.
 
 ## 해결하려는 문제
 
@@ -69,6 +80,12 @@
 
 **구현 근거:** [발송 가드레일](apps/web/lib/messaging/guardrails.ts), [메시지 서비스](apps/web/lib/messaging/service.ts), [전달 웹훅](apps/web/app/api/webhooks/messages/route.ts), [갱신 응답 웹훅](apps/web/app/api/webhooks/renewal-responses/route.ts), [CRM 통합 테스트](apps/web/app/api/webhooks/messages/route.test.ts)
 
+### 평가자가 같은 문제 상황을 반복해서 확인할 수 있게 했습니다
+
+공유 데모에서는 앞선 방문자가 완료한 작업이 다음 방문자의 화면에서도 사라지고, 고정된 계약 날짜는 시간이 지나면 핵심 흐름을 바꿉니다. 공개 계정과 실제 작업 계정을 분리하고, 한국 날짜를 기준으로 새 시나리오를 만드는 방식으로 수정했습니다. 초기화는 본인 공간에만 적용하고 새 ID를 발급해 Query 캐시와 실험 기록이 이전 체험에 섞이지 않게 했습니다.
+
+로그인과 계정 변경, 데이터 소유권, 영속 저장, 관제를 같은 여정에서 검증하는 실제 Next.js E2E도 추가했습니다. 프로토타입 테스트와 별개이며 임시 PostgreSQL 데이터베이스만 변경합니다. 문제와 선택한 해법, 포기한 대안은 [데모 재현성 개선 사례](docs/case-studies/demo-reproducibility.md)에 기록했습니다. 이는 엔지니어링 검증 사례이며 사용자 전환율 개선 성과는 아닙니다.
+
 ## 기술 구성
 
 ```text
@@ -88,7 +105,7 @@ Browser
 | 서버 | Next.js Route Handler, Server Action, Server Component, Zod |
 | 데이터 | Neon Postgres, 로컬 PGlite, Upstash Redis |
 | 모노레포 | pnpm workspace, Turborepo |
-| 테스트 | Vitest, Testing Library, axe-core, 프로토타입 Playwright |
+| 테스트 | Vitest, Testing Library, axe-core, 실제 Next.js 웹앱과 프로토타입의 독립 Playwright 구성 |
 | 운영 | GitHub Actions, Vercel, 구조화 로그, Core Web Vitals |
 
 웹 앱과 API를 한 Next.js 프로젝트에서 운영하는 모듈형 모놀리스 구조입니다. 초기 제품의 배포 속도와 타입 공유를 우선하되 도메인, 분석, 실험과 UI를 워크스페이스 패키지로 분리했습니다.
@@ -97,20 +114,25 @@ Browser
 
 | 대상 | 검증 결과 | 실행 근거 |
 | --- | --- | --- |
-| 프로덕션 웹앱 | 2026-08-31 Query 적용 후 검증: 27개 파일, 102개 테스트 통과. 공통 패키지 8개 테스트 추가 통과 | [최신 검증 기록](docs/QUERY-STATE.md) |
-| 타입과 빌드 | TypeScript 검사, Next.js 프로덕션 빌드 통과 | `pnpm typecheck`, `pnpm build` |
-| 성능 예산 | 주요 화면 gzip 번들 예산 통과 | `pnpm bundle:check` |
+| 웹 단위 및 통합 | 2026-08-31 개인 데모와 청구월 선택 적용 후 31개 파일, 125개 테스트 통과. 공통 패키지 8개 추가 통과 | [최신 개선 사례](docs/case-studies/demo-reproducibility.md) |
+| 실제 웹앱 E2E | Chromium 핵심 여정 4개 통과. 저장 유지, 역할 전환, 방문자 격리, 두 홈 구성과 모바일 로그아웃 검증 | [범위와 실행 방법](docs/E2E.md) |
+| 타입과 빌드 | 개인 데모 변경 적용 후 5개 패키지 타입 검사와 Next.js 프로덕션 빌드 통과 | `pnpm verify`, 2026-08-31 |
+| 성능 예산 | 10개 경로 모두 기존 예산 통과. 홈 177.3KiB / 185KiB, 메시지 167.7KiB / 170KiB | [전후 측정값](docs/OBSERVABILITY.md) |
 | 접근성 | 주요 내비게이션, 수리와 알림 설정에 axe-core 검사 적용 | [컴포넌트 테스트](apps/web/components/maintenance/maintenance-view.test.tsx) |
 | 성능 관측 | 실제 브라우저 지표 수집과 최근 7일 p75 집계 | [수집 코드](apps/web/components/web-vitals-reporter.tsx), [집계 코드](apps/web/lib/data/repository.ts) |
-| 모바일 프로토타입 | Playwright 핵심 흐름 10개 통과 | `npm --prefix prototype run test:runtime` |
-| 정적 랜딩 | Node 테스트 4개 통과 | `npm --prefix prototype run test:sites` |
-| 지속적 통합 | 웹앱과 프로토타입을 독립 작업으로 검증하고 Vercel도 저장소 루트의 `pnpm verify`를 실행 | [CI 워크플로](.github/workflows/ci.yml), [Vercel 설정](apps/web/vercel.json) |
+| 모바일 프로토타입 | 기존 별도 시안 검증에서 Playwright 핵심 흐름 10개 통과. 이번 웹앱 E2E와는 별도 | `npm --prefix prototype run test:runtime` |
+| 정적 랜딩 | 기존 프로토타입 검증에서 Node 테스트 4개 통과 | `npm --prefix prototype run test:sites` |
+| 지속적 통합 | 웹앱과 프로토타입을 독립 작업으로 검증. 웹앱 E2E를 CI에 추가하고 Vercel은 기존 `pnpm verify` 유지 | [CI 워크플로](.github/workflows/ci.yml), [Vercel 설정](apps/web/vercel.json) |
 
 웹앱 검증은 다음 명령으로 재현합니다.
 
 ```bash
 pnpm verify
+pnpm test:e2e:setup
+pnpm test:e2e
 ```
+
+`pnpm verify`가 프로덕션 빌드를 만듭니다. E2E는 이를 로컬 임시 DB와 실행하며 운영 URL을 대상으로 실행하지 않습니다. GitHub Actions의 E2E 성공을 Vercel 배포가 자동으로 기다리도록 설정한 것은 아닙니다. 제출할 버전의 CI 상태와 배포 커밋을 함께 확인해야 합니다.
 
 프로토타입 검증은 의존성과 Chromium을 준비한 뒤 별도로 실행합니다.
 
@@ -129,6 +151,8 @@ npm --prefix prototype run test:sites
 실서비스로 전환하려면 내구성 이벤트 큐와 예약 발송 워커, 실제 인증과 CRM 공급자, 중앙 비밀 값 관리와 장애 알림이 추가로 필요합니다. 구현된 범위와 후속 작업은 [프로덕션 준비 상태](docs/PRODUCTION-READINESS.md)에서 구분해 확인할 수 있습니다.
 
 실험 결과를 과장하지 않기 위해 실제 사용자 데이터가 없는 지표는 성과로 표기하지 않았습니다. 이 프로젝트는 실험을 설계하고 측정 가능한 상태로 구현하는 역량을 보여주는 데 초점을 둡니다.
+
+실제 임대인 사용성 관찰과 A/B 실험 리드아웃은 아직 없습니다. [사용자 검증 계획](docs/USER-VALIDATION.md)에 관찰할 과제, 기록 기준과 중단 조건을 적었으며, 로컬 테스트를 고객 성과로 바꾸어 쓰지 않습니다. AI 활용 범위와 사용자 피드백이 구현 방향을 바꾼 사례는 [AI 작업 기록](docs/AI-WORKFLOW.md)에 공개합니다.
 
 ## 로컬 실행
 
@@ -152,11 +176,13 @@ pnpm dev
 - [실험 설계](docs/EXPERIMENTS.md)
 - [이벤트 택소노미](docs/EVENTS.md)
 - [채용 요건 대응표](docs/REQUIREMENT-MATRIX.md)
+- [실제 사용자 검증 계획](docs/USER-VALIDATION.md)
 
 ### 엔지니어링과 운영
 
 - [현재 및 목표 아키텍처](docs/ARCHITECTURE.md)
 - [Query 적용 결정과 검증](docs/QUERY-STATE.md)
+- [실제 웹앱 E2E](docs/E2E.md)
 - [프로덕션 준비 상태](docs/PRODUCTION-READINESS.md)
 - [디자인 시스템](docs/DESIGN-SYSTEM.md)
 - [성능 관측성과 품질 예산](docs/OBSERVABILITY.md)
@@ -166,6 +192,7 @@ pnpm dev
 ### 작업 과정과 품질 기록
 
 - [AI 활용과 검증 원칙](docs/AI-WORKFLOW.md)
+- [데모 재현성 개선 사례](docs/case-studies/demo-reproducibility.md)
 - [전달 계획과 완료 조건](docs/DELIVERY-PLAN.md)
 - [P0·P1 제품 감사와 개선 결과](docs/audits/p0-p1-2026-08-31/README.md)
 - [프로덕션 디자인 QA](design-qa.md)

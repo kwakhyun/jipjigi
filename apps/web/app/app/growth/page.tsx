@@ -27,8 +27,12 @@ const eventLabels: Record<string, string> = {
 };
 
 export default async function GrowthPage() {
-  await requireOperator();
-  const [overview, webVitals] = await Promise.all([getGrowthOverview(), getWebVitalsOverview()]);
+  const user = await requireOperator();
+  const workspace = user.demoWorkspace;
+  const [overview, webVitals] = await Promise.all([
+    getGrowthOverview(workspace?.ownerId),
+    getWebVitalsOverview(workspace ? [workspace.ownerId, workspace.operatorId] : undefined),
+  ]);
   const eventMap = new Map(overview.eventCounts.map((item) => [item.name, item.count]));
   const views = eventMap.get("page_viewed") ?? 0;
   const actions = ["renewal_started", "overdue_notice_requested", "payment_marked", "maintenance_updated"].reduce((sum, key) => sum + (eventMap.get(key) ?? 0), 0);
@@ -41,7 +45,8 @@ export default async function GrowthPage() {
 
   return (
     <div className="standard-page growth-page">
-      <PageHeader eyebrow="운영자 도구" title="그로스 관제" description="화면 출시에서 끝내지 않고 노출, 조치, 안전 지표까지 측정합니다." action={<span className="live-badge"><span /> 최근 7일 실사용 데이터</span>} />
+      <PageHeader eyebrow="운영자 도구" title="그로스 관제" description="화면 출시에서 끝내지 않고 노출, 조치, 안전 지표까지 측정합니다." action={<span className="live-badge"><span /> {workspace ? "현재 체험 공간의 데이터" : "최근 7일 수집 데이터"}</span>} />
+      {workspace ? <p className="demo-measurement-note">임대인 데모에서 수행한 행동만 집계합니다. 두 계정은 한 체험 공간을 공유하며, 이 수치는 실제 고객의 실험 성과가 아닙니다. 새로운 행동은 이 화면을 다시 열면 반영됩니다.</p> : null}
       <section className="growth-kpi-grid" aria-label="핵심 제품 지표">
         <GrowthKpi icon={<EyeOpenIcon />} label="화면 조회" value={views} detail="로그인 사용자 기준" />
         <GrowthKpi icon={<TargetIcon />} label="운영 조치" value={actions} detail={views ? `조회 대비 ${Math.round((actions / views) * 100)}%` : "아직 실행된 조치 없음"} />
@@ -59,7 +64,7 @@ export default async function GrowthPage() {
       </section>
       <section className="surface-card rum-card" aria-labelledby="rum-title">
         <div className="data-section-header">
-          <div><span className="section-kicker" aria-hidden="true">실사용 성능</span><h2 id="rum-title">사용자 체감 성능</h2><p>브라우저에서 수집한 최근 7일 Core Web Vitals의 p75입니다.</p></div>
+          <div><span className="section-kicker" aria-hidden="true">브라우저 성능</span><h2 id="rum-title">사용자 체감 성능</h2><p>{workspace ? "현재 체험 공간에서 수집한 Core Web Vitals의 p75입니다. 외부 사용자 전체의 성능을 뜻하지 않습니다." : "브라우저에서 수집한 최근 7일 Core Web Vitals의 p75입니다."}</p></div>
           <span className="rum-sample-count">{webVitals.sampleCount.toLocaleString("ko-KR")}개 표본, {webVitals.routeCount}개 경로</span>
         </div>
         <div className="rum-metric-grid">
@@ -79,7 +84,7 @@ export default async function GrowthPage() {
       </section>
       <div className="growth-main-grid">
         <section className="surface-card experiment-card" aria-labelledby="experiment-title">
-          <div className="data-section-header"><div><span className="section-kicker" aria-hidden="true">실험</span><h2 id="experiment-title">홈 브리핑 우선순위</h2><p>확인이 시급한 항목을 먼저 보여줄 때 조치율이 높아지는지 검증합니다.</p></div><span className="experiment-active"><span /> 진행 중</span></div>
+          <div className="data-section-header"><div><span className="section-kicker" aria-hidden="true">실험</span><h2 id="experiment-title">홈 브리핑 우선순위</h2><p>확인이 시급한 항목을 먼저 보여줄 때 조치율이 높아지는지 검증합니다.</p></div><span className="experiment-active"><span /> {workspace ? "배정과 집계 체험" : "진행 중"}</span></div>
           <div className="experiment-definition">
             <div><span>배정 현황</span><strong>{assignedUsers ? `위험 우선 ${Math.round((riskFirstUsers / assignedUsers) * 100)}%` : "배정 대기"}</strong><small>총 {assignedUsers.toLocaleString("ko-KR")}명 배정</small></div>
             {(["risk-first", "agenda-first"] as const).map((variant) => {
@@ -106,7 +111,7 @@ export default async function GrowthPage() {
             const context = [`릴리스 ${event.releaseVersion}`, event.experimentKey && event.variant ? `${propertyValue(event.variant)} 실험` : null, `${event.userSegment} 세그먼트`].filter(Boolean).join(" · ");
             return <article key={event.id}><span className="event-icon"><TargetIcon /></span><div><strong>{eventLabels[event.name] ?? event.name}</strong><p>{event.path} · {context}</p><small>{Object.entries(properties).map(([key, value]) => `${propertyLabel(key)}: ${propertyValue(String(value))}`).join(", ") || "추가 속성 없음"}</small></div><time dateTime={event.occurredAt}>{formatTime(event.occurredAt)}</time></article>;
           })}
-          {!overview.recentEvents.length ? <div className="empty-state"><CheckCircledIcon /><strong>이벤트 수집 준비가 끝났어요.</strong><span>사용자 행동이 생기면 수 초 안에 표시됩니다.</span></div> : null}
+          {!overview.recentEvents.length ? <div className="empty-state"><CheckCircledIcon /><strong>이벤트 수집 준비가 끝났어요.</strong><span>새 행동은 이 화면을 다시 열면 표시됩니다.</span></div> : null}
         </div>
       </section>
     </div>

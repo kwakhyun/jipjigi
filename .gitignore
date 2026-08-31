@@ -12,6 +12,8 @@ coverage/
 apps/web/public/uploads/
 prototype/test-results/
 prototype/playwright-report/
+apps/web/test-results/
+apps/web/playwright-report/
 .vercel
 .env*
 !.env.example

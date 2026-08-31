@@ -5,6 +5,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { SESSION_COOKIE } from "./constants";
 
 const SESSION_DURATION_SECONDS = 60 * 60 * 12;
+export const DEMO_WORKSPACE_COOKIE = "jipjigi_demo_workspace";
 
 export { SESSION_COOKIE } from "./constants";
 
@@ -62,4 +63,40 @@ export async function setSessionCookie(payload: SessionPayload) {
 export async function clearSessionCookie() {
   const store = await cookies();
   store.delete(SESSION_COOKIE);
+}
+
+export async function createDemoWorkspaceToken(workspaceId: string, expiresAt: string) {
+  return new SignJWT({ workspaceId })
+    .setProtectedHeader({ alg: "HS256" })
+    .setAudience("jipjigi-demo-workspace")
+    .setIssuedAt()
+    .setExpirationTime(Math.floor(Date.parse(expiresAt) / 1000))
+    .sign(authSecret());
+}
+
+export async function readDemoWorkspaceToken(token?: string | null): Promise<string | null> {
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, authSecret(), { algorithms: ["HS256"], audience: "jipjigi-demo-workspace" });
+    return typeof payload.workspaceId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(payload.workspaceId)
+      ? payload.workspaceId : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function savedDemoWorkspaceId() {
+  const store = await cookies();
+  return readDemoWorkspaceToken(store.get(DEMO_WORKSPACE_COOKIE)?.value);
+}
+
+export async function setDemoWorkspaceCookie(workspaceId: string, expiresAt: string) {
+  const store = await cookies();
+  store.set(DEMO_WORKSPACE_COOKIE, await createDemoWorkspaceToken(workspaceId, expiresAt), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    expires: new Date(expiresAt),
+    path: "/",
+  });
 }

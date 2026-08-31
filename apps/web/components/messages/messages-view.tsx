@@ -28,7 +28,7 @@ export function MessagesView({ initialTargetId }: { initialTargetId?: string | u
   const messages = messagesQuery.data ?? [];
   const operation = useOperationMutation();
   const targets = useMemo<Target[]>(() => [
-    ...charges.filter((charge) => charge.status === "overdue").map((charge) => ({ kind: "charge" as const, id: charge.id, label: `${charge.unitName} 미납 안내`, recipient: charge.tenantName, template: `${charge.tenantName}님, ${charge.unitName}의 이번 달 임대료 입금 내역이 아직 확인되지 않아 안내드립니다. 이미 납부하셨다면 별도로 답변하지 않으셔도 됩니다.` })),
+    ...charges.filter((charge) => charge.status === "overdue").map((charge) => ({ kind: "charge" as const, id: charge.id, label: `${charge.unitName} 미납 안내`, recipient: charge.tenantName, template: `${charge.tenantName}님, ${charge.unitName}의 ${charge.period.slice(0, 4)}년 ${Number(charge.period.slice(5))}월 임대료 입금 내역이 아직 확인되지 않아 안내드립니다. 이미 납부하셨다면 별도로 답변하지 않으셔도 됩니다.` })),
     ...contracts.filter((contract) => contract.renewalStatus === "attention").map((contract) => ({ kind: "lease" as const, id: contract.id, label: `${contract.unitName} 갱신 의사 확인`, recipient: contract.tenantName, template: `${contract.tenantName}님, 계약 만료일이 다가와 갱신 의사를 여쭙습니다. 편하실 때 답변 부탁드립니다.` })),
   ], [charges, contracts]);
   const [selectedId, setSelectedId] = useState(() => initialTargetId ?? targets[0]?.id ?? "");
@@ -94,7 +94,7 @@ export function MessagesView({ initialTargetId }: { initialTargetId?: string | u
             {messages.map((message) => (
               <article className="outbox-row" key={message.id}>
                 <span className={`channel-icon status-${message.status}`}><PaperPlaneIcon /></span>
-                <div><strong>{templateLabel(message.templateKey)}</strong><p>{message.channel === "sandbox_alimtalk" ? "샌드박스 알림톡" : "앱 푸시"} · {message.entityId.replace(/^(charge|lease)-/, "")}</p><time dateTime={message.createdAt}>{formatDateTime(message.createdAt)}</time></div>
+                <div><strong>{templateLabel(message.templateKey)}</strong><p>{message.channel === "sandbox_alimtalk" ? "샌드박스 알림톡" : "앱 푸시"} · {recipientLabel(message.entityId, [...contracts, ...charges])}</p><time dateTime={message.createdAt}>{formatDateTime(message.createdAt)}</time></div>
                 <div className="outbox-status-actions"><MessageStatus message={message} />{message.status === "failed" ? <button className="button button-secondary button-small" type="button" disabled={isPending} onClick={() => retry(message)}>{retryingId === message.id ? "재접수 중…" : "다시 접수"}</button> : null}</div>
               </article>
             ))}
@@ -110,6 +110,11 @@ export function MessagesView({ initialTargetId }: { initialTargetId?: string | u
 function MessageStatus({ message }: { message: MessageRow }) {
   const labels: Record<MessageRow["status"], string> = { accepted: "접수", scheduled: "예약", delivered: "전달", blocked: "차단", failed: "실패" };
   return <span className={`status-badge status-${message.status}`} title={message.guardrailReason ?? undefined}>{labels[message.status]}{message.retryCount ? ` · ${message.retryCount}차 재접수` : ""}</span>;
+}
+
+function recipientLabel(id: string, resources: Array<{ id: string; buildingName: string; unitName: string }>) {
+  const resource = resources.find((item) => item.id === id);
+  return resource ? `${resource.buildingName} ${resource.unitName}` : "계약 정보 확인 필요";
 }
 
 function templateLabel(key: string) {
