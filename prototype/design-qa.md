@@ -2,12 +2,12 @@
 
 ## 비교 대상
 
-- source visual truth path: `/Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/prototype/design-reference.png`
+- source visual truth path: `prototype/design-reference.png`
 - implementation URL: `http://localhost:4173/`
-- implementation screenshot path: `/Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/prototype/.design-qa/implementation-home-passed.png`
-- full-view comparison evidence: `/Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/prototype/.design-qa/comparison-home-passed.png`
-- focused hero comparison evidence: `/Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/prototype/.design-qa/comparison-hero-passed.png`
-- focused core-content comparison evidence: `/Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/prototype/.design-qa/comparison-core-passed.png`
+- implementation screenshot path: `prototype/.design-qa/implementation-home-passed.png`
+- full-view comparison evidence: `prototype/.design-qa/comparison-home-passed.png`
+- focused hero comparison evidence: `prototype/.design-qa/comparison-hero-passed.png`
+- focused core-content comparison evidence: `prototype/.design-qa/comparison-core-passed.png`
 
 ## 정규화와 상태
 
