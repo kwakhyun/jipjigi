@@ -19,3 +19,7 @@ apps/web/playwright-report/
 !.env.example
 !**/.env.example
 *.tsbuildinfo
+
+# Local-only portfolio PDF sources and generated artifacts
+/portfolio/
+/output/pdf/
