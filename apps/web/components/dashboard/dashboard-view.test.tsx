@@ -8,6 +8,7 @@ import { ownerQueryHarness } from "@/lib/query/test-harness";
 import { ownerKeys } from "@/lib/query/keys";
 
 const snapshot: DashboardSnapshot = {
+  attention: { renewal: 1, overdue: 1, maintenance: 0, total: 2, affectedUnits: 2 },
   generatedAt: "2026-08-31T00:00:00.000Z", hasMutedBriefings: false,
   building: { id: "building-1", name: "가상 건물", address: "가상 주소", totalUnits: 3, occupiedUnits: 2 },
   metrics: { billingPeriod: "2026-08", collectionRate: 50, collectedAmount: 500000, expectedAmount: 1000000, occupiedRate: 66.7, openMaintenance: 0 },

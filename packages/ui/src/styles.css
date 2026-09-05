@@ -1,0 +1,77 @@
+:root {
+  --jj-ink: #1c1b27;
+  --jj-muted: #625e6e;
+  --jj-subtle: #686372;
+  --jj-line: #e8e5ee;
+  --jj-surface: #ffffff;
+  --jj-canvas: #f8f7fa;
+  --jj-purple: #7054f5;
+  --jj-purple-dark: #5c41dc;
+  --jj-purple-soft: #efebff;
+  --jj-coral: #ed655e;
+  --jj-danger-text: #b33d36;
+  --jj-font-caption: 12px;
+  --jj-font-body: 14px;
+  --jj-coral-soft: #fff0ef;
+  --jj-green: #168452;
+  --jj-green-text: #126e44;
+  --jj-green-soft: #e8f7ef;
+  --jj-night: #100b2c;
+  --jj-shadow: 0 16px 50px rgba(32, 25, 63, 0.08);
+  --jj-shadow-soft: 0 8px 28px rgba(32, 25, 63, 0.06);
+  --jj-radius-xl: 28px;
+  --jj-radius-lg: 20px;
+  --jj-radius-md: 15px;
+  --jj-font: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.button { flex-shrink: 0; }
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--jj-canvas); color: var(--jj-ink); font-family: var(--jj-font); -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { color: inherit; font: inherit; }
+button, select { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .58; }
+a { color: inherit; text-decoration: none; }
+img { max-width: 100%; }
+p, h1, h2, h3 { margin-top: 0; }
+::selection { background: #d9d0ff; color: #2a1b66; }
+:focus-visible { outline: 3px solid rgba(112, 84, 245, .35); outline-offset: 3px; }
+
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.skip-link { position: fixed; z-index: 200; top: 12px; left: 12px; padding: 10px 14px; border-radius: 10px; background: #fff; color: var(--jj-purple-dark); transform: translateY(-150%); box-shadow: var(--jj-shadow); font-weight: 800; }
+.skip-link:focus { transform: translateY(0); }
+
+.button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; border: 1px solid transparent; border-radius: 13px; font-weight: 800; letter-spacing: -.025em; transition: transform .18s ease, background .18s ease, box-shadow .18s ease; }
+.button:hover:not(:disabled) { transform: translateY(-1px); }
+.button-primary { border-color: var(--jj-purple-dark); background: linear-gradient(105deg, #684bed, #7458ee); color: #fff; box-shadow: 0 8px 18px rgba(105, 75, 237, .22); }
+.button-primary:hover:not(:disabled) { background: linear-gradient(105deg, #5c3fe4, #7459ee); box-shadow: 0 10px 22px rgba(105, 75, 237, .3); }
+.button-secondary { border-color: #dcd6fa; background: #f7f5ff; color: var(--jj-purple-dark); }
+.button-secondary:hover:not(:disabled) { background: var(--jj-purple-soft); }
+.button-quiet { border-color: var(--jj-line); background: #fff; color: #554f61; }
+.button-dark { border-color: #2a2353; background: var(--jj-night); color: #fff; }
+.button-small { min-height: 36px; padding: 0 13px; border-radius: 11px; font-size: 13px; }
+.button-large { min-height: 54px; padding: 0 24px; border-radius: 16px; font-size: 16px; }
+.button-wide { width: 100%; }
+.status-badge { display: inline-flex; min-height: 27px; align-items: center; gap: 5px; padding: 0 9px; border-radius: 999px; font-size: var(--jj-font-caption); font-weight: 850; white-space: nowrap; }
+.status-badge svg { width: 12px; height: 12px; }
+.status-paid, .status-delivered { background: var(--jj-green-soft); color: var(--jj-green-text); }
+.status-overdue, .status-blocked, .status-failed { background: var(--jj-coral-soft); color: var(--jj-danger-text); }
+.status-upcoming, .status-accepted, .status-scheduled { background: var(--jj-purple-soft); color: var(--jj-purple-dark); }
+.status-muted { background: #f0eef3; color: var(--jj-muted); }
+
+.ui-field { display: grid; gap: 8px; }
+.ui-field > label { font-weight: 750; font-size: var(--jj-font-body); }
+.ui-field-hint { margin: 0; color: var(--jj-muted); font-size: var(--jj-font-caption); }

@@ -2,7 +2,7 @@ import { cpSync, existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 
 const webDirectory = fileURLToPath(new URL("..", import.meta.url));
 const standaloneDirectory = path.join(webDirectory, ".next/standalone/apps/web");
@@ -15,10 +15,7 @@ if (!existsSync(path.join(webDirectory, ".next/BUILD_ID")) || !existsSync(entryp
 cpSync(path.join(webDirectory, "public"), path.join(standaloneDirectory, "public"), { recursive: true });
 cpSync(path.join(webDirectory, ".next/static"), path.join(standaloneDirectory, ".next/static"), { recursive: true });
 const temporaryDirectory = mkdtempSync(path.join(tmpdir(), "jipjigi-web-e2e-"));
-const server = spawn(process.execPath, [entrypoint], {
-  cwd: standaloneDirectory,
-  stdio: "inherit",
-  env: {
+const environment = {
     ...process.env,
     NODE_ENV: "production",
     TZ: "UTC",
@@ -36,7 +33,13 @@ const server = spawn(process.execPath, [entrypoint], {
     ALLOW_DEMO_AUTH: "true",
     NEXT_PUBLIC_APP_URL: "http://localhost:3118",
     NEXT_TELEMETRY_DISABLED: "1",
-  },
+  };
+const setup = spawnSync(process.execPath, [path.join(webDirectory, "node_modules/tsx/dist/cli.mjs"), path.join(webDirectory, "scripts/migrate-db.ts"), "--seed-demo"], { cwd: webDirectory, env: environment, stdio: "inherit" });
+if (setup.status !== 0) { rmSync(temporaryDirectory, { recursive: true, force: true }); throw new Error("E2E database setup failed"); }
+const server = spawn(process.execPath, [entrypoint], {
+  cwd: standaloneDirectory,
+  stdio: "inherit",
+  env: environment,
 });
 
 const clean = () => rmSync(temporaryDirectory, { recursive: true, force: true });

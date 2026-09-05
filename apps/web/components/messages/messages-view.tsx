@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
+import { Button, EmptyState, Field, StatusBadge } from "@jipjigi/ui/components";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircledIcon, ClockIcon, InfoCircledIcon, LockClosedIcon, PaperPlaneIcon } from "@radix-ui/react-icons";
-import type { MessageRow } from "@/lib/data/repository";
+import type { MessageRow } from "@/lib/data/types";
 import { useTransientMessage } from "@/lib/hooks/use-transient-message";
 import { ownerResourceOptions } from "@/lib/query/options";
 import { useOwnerId } from "@/lib/query/owner-context";
@@ -28,9 +30,10 @@ export function MessagesView({ initialTargetId }: { initialTargetId?: string | u
   const charges = ledgerQuery.data ?? [];
   const messages = messagesQuery.data ?? [];
   const operation = useOperationMutation();
+  const recipients = useMemo(() => new Map([...contracts, ...charges].map((item) => [item.id, `${item.buildingName} ${item.unitName}`])), [contracts, charges]);
   const targets = useMemo<Target[]>(() => [
-    ...charges.filter((charge) => charge.status === "overdue").map((charge) => ({ kind: "charge" as const, id: charge.id, label: `${charge.unitName} 미납 안내`, recipient: charge.tenantName, template: `${charge.tenantName}님, ${charge.unitName}의 ${charge.period.slice(0, 4)}년 ${Number(charge.period.slice(5))}월 임대료 입금 내역이 아직 확인되지 않아 안내드립니다. 이미 납부하셨다면 별도로 답변하지 않으셔도 됩니다.` })),
-    ...contracts.filter((contract) => contract.renewalStatus === "attention").map((contract) => ({ kind: "lease" as const, id: contract.id, label: `${contract.unitName} 갱신 의사 확인`, recipient: contract.tenantName, template: `${contract.tenantName}님, 계약 만료일이 다가와 갱신 의사를 여쭙습니다. 편하실 때 답변 부탁드립니다.` })),
+    ...charges.filter((charge) => charge.status === "overdue").map((charge) => ({ kind: "charge" as const, id: charge.id, label: `${charge.buildingName} ${charge.unitName} 미납 안내`, recipient: charge.tenantName, template: `${charge.tenantName}님, ${charge.unitName}의 ${charge.period.slice(0, 4)}년 ${Number(charge.period.slice(5))}월 임대료 입금 내역이 아직 확인되지 않아 안내드립니다. 이미 납부하셨다면 별도로 답변하지 않으셔도 됩니다.` })),
+    ...contracts.filter((contract) => contract.renewalStatus === "attention").map((contract) => ({ kind: "lease" as const, id: contract.id, label: `${contract.buildingName} ${contract.unitName} 갱신 의사 확인`, recipient: contract.tenantName, template: `${contract.tenantName}님, 계약 만료일이 다가와 갱신 의사를 여쭙습니다. 편하실 때 답변 부탁드립니다.` })),
   ], [charges, contracts]);
   const [selectedId, setSelectedId] = useState(() => initialTargetId ?? targets[0]?.id ?? "");
   const retryingId = operation.variables?.type === "retry_message" ? operation.variables.messageId : null;
@@ -68,11 +71,12 @@ export function MessagesView({ initialTargetId }: { initialTargetId?: string | u
       <div className="messages-layout">
         <section className="surface-card composer-card" aria-labelledby="composer-title">
           <div className="composer-heading"><div><span className="section-kicker" aria-hidden="true">샌드박스 채널</span><h2 id="composer-title">안전한 메시지 보내기</h2></div><span className="sandbox-badge">테스트 채널</span></div>
-          <label className="field-label" htmlFor="message-target">대상과 목적</label>
+          <Field id="message-target" label="대상과 목적">
           <select className="text-input select-input" id="message-target" value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
             {!selected ? <option value={selectedId} disabled>발송 가능한 대상을 선택해 주세요</option> : null}
             {targets.map((target) => <option key={target.id} value={target.id}>{target.label}</option>)}
           </select>
+          </Field>
           {selected ? (
             <div className="message-preview">
               <span className="message-preview-channel">집지기 알림</span>
@@ -80,13 +84,13 @@ export function MessagesView({ initialTargetId }: { initialTargetId?: string | u
               <p>{selected.template}</p>
               <small>안내 수신을 원하지 않으면 메시지의 문의 경로에서 요청할 수 있습니다.</small>
             </div>
-          ) : <div className="empty-state"><CheckCircledIcon /><strong>선택한 대상에 보낼 메시지가 없어요.</strong><span>이미 접수했거나 상태가 바뀌었을 수 있어요. 발송함을 확인하거나 다른 대상을 선택해 주세요.</span></div>}
+          ) : <EmptyState icon={<CheckCircledIcon />} title="선택한 대상에 보낼 메시지가 없어요." description="이미 접수했거나 상태가 바뀌었을 수 있어요. 발송함을 확인하거나 다른 대상을 선택해 주세요." />}
           <div className="guardrail-checklist" aria-label="발송 전 자동 점검">
-            <span><CheckCircledIcon /> 수신 동의 확인</span>
+            <span><CheckCircledIcon /> 접수 시 수신 동의 확인</span>
             <span><ClockIcon /> 발송 제한 {quietHours.start}~{quietHours.end} (한국 시간)</span>
             <span><LockClosedIcon /> 갱신은 24시간 1회, 미납은 청구월 1회</span>
           </div>
-          <button className="button button-primary button-wide" type="button" disabled={!selected || isPending || queries.some((query) => query.isError)} onClick={send}><PaperPlaneIcon /> {isPending ? "발송 조건 확인 중…" : "발송 조건 확인 후 접수"}</button>
+          <Button wide disabled={!selected || isPending || queries.some((query) => query.isError)} onClick={send}><PaperPlaneIcon /> {isPending ? "발송 조건 확인 중…" : "발송 조건 확인 후 접수"}</Button>
           <p className="sandbox-disclaimer"><InfoCircledIcon /> 실제 알림톡은 발송하지 않습니다. 예약은 시각과 상태 저장까지만 제공하며 자동 발송은 실행되지 않습니다. 실제 운영에는 공급자 연동과 예약 처리 워커가 필요합니다.</p>
         </section>
         <section className="surface-card outbox-card" aria-labelledby="outbox-title">
@@ -95,11 +99,11 @@ export function MessagesView({ initialTargetId }: { initialTargetId?: string | u
             {messages.map((message) => (
               <article className="outbox-row" key={message.id}>
                 <span className={`channel-icon status-${message.status}`}><PaperPlaneIcon /></span>
-                <div><strong>{templateLabel(message.templateKey)}</strong><p>{message.channel === "sandbox_alimtalk" ? "샌드박스 알림톡" : "앱 푸시"} · {recipientLabel(message.entityId, [...contracts, ...charges])}</p><time dateTime={message.createdAt}>{formatKoreanScheduleDateTime(message.createdAt)}</time></div>
-                <div className="outbox-status-actions"><MessageStatus message={message} />{message.status === "failed" ? <button className="button button-secondary button-small" type="button" disabled={isPending} onClick={() => retry(message)}>{retryingId === message.id ? "재접수 중…" : "다시 접수"}</button> : null}</div>
+                <div><strong>{templateLabel(message.templateKey)}</strong><p>{message.channel === "sandbox_alimtalk" ? "샌드박스 알림톡" : "앱 푸시"} · {recipients.get(message.entityId) ?? "계약 정보 확인 필요"}</p><MessageDetails message={message} /></div>
+                <div className="outbox-status-actions"><MessageStatus message={message} />{message.status === "failed" ? <button className="button button-secondary button-small" type="button" disabled={isPending} onClick={() => retry(message)}>{isPending && retryingId === message.id ? "재접수 중…" : "다시 접수"}</button> : null}</div>
               </article>
             ))}
-            {messages.length === 0 ? <div className="empty-state"><PaperPlaneIcon /><strong>아직 발송 이력이 없어요.</strong><span>첫 메시지를 접수하면 발송 상태가 여기에 표시됩니다.</span></div> : null}
+            {messages.length === 0 ? <EmptyState icon={<PaperPlaneIcon />} title="아직 발송 이력이 없어요." description="첫 메시지를 접수하면 발송 상태가 여기에 표시됩니다." /> : null}
           </div>
         </section>
       </div>
@@ -110,12 +114,23 @@ export function MessagesView({ initialTargetId }: { initialTargetId?: string | u
 
 function MessageStatus({ message }: { message: MessageRow }) {
   const labels: Record<MessageRow["status"], string> = { accepted: "접수", scheduled: "예약", delivered: "전달", blocked: "차단", failed: "실패" };
-  return <span className={`status-badge status-${message.status}`} title={message.guardrailReason ?? undefined}>{labels[message.status]}{message.retryCount ? ` · ${message.retryCount}차 재접수` : ""}</span>;
+  return <StatusBadge tone={message.status === "delivered" ? "positive" : ["blocked", "failed"].includes(message.status) ? "warning" : "neutral"}>{labels[message.status]}{message.retryCount ? ` · ${message.retryCount}차 재접수` : ""}</StatusBadge>;
 }
 
-function recipientLabel(id: string, resources: Array<{ id: string; buildingName: string; unitName: string }>) {
-  const resource = resources.find((item) => item.id === id);
-  return resource ? `${resource.buildingName} ${resource.unitName}` : "계약 정보 확인 필요";
+function MessageDetails({ message }: { message: MessageRow }) {
+  const reasons: Record<string, string> = {
+    missing_consent: "임차인의 수신 동의가 없어 차단했어요. 동의를 확인한 뒤 다시 접수해 주세요.",
+    frequency_cap: "최근 접수 횟수 제한에 도달했어요. 갱신 안내는 24시간 1회, 7일 2회까지 접수할 수 있어요.",
+    quiet_hours: "발송 제한 시간이 끝난 뒤의 시각으로 예약했어요.",
+  };
+  return <>
+    <dl className="message-times">
+      <div><dt>접수</dt><dd><time dateTime={message.createdAt}>{formatKoreanScheduleDateTime(message.createdAt)}</time></dd></div>
+      {message.status === "scheduled" && message.scheduledFor ? <div><dt>예약</dt><dd><time dateTime={message.scheduledFor}>{formatKoreanScheduleDateTime(message.scheduledFor)}</time></dd></div> : null}
+      {message.deliveredAt ? <div><dt>전달</dt><dd><time dateTime={message.deliveredAt}>{formatKoreanScheduleDateTime(message.deliveredAt)}</time></dd></div> : null}
+    </dl>
+    {message.guardrailReason ? <p className="message-reason">{reasons[message.guardrailReason] ?? "발송 조건을 충족하지 못했어요. 대상과 발송 설정을 확인해 주세요."}{message.guardrailReason === "quiet_hours" ? <> <Link href="/app/settings">발송 시간 설정</Link></> : null}</p> : null}
+  </>;
 }
 
 function templateLabel(key: string) {

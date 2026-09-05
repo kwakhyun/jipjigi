@@ -3,18 +3,18 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { BrowserEventNameSchema, ProductEventSchema, sanitizeProperties, type EventName } from "@jipjigi/analytics";
 import { briefingPriorityExperiment } from "@jipjigi/experiments";
-import { getDatabase } from "@/lib/db/client";
+import { getDatabase, type AppDatabase } from "@/lib/db/client";
 
 function releaseVersion() {
   return process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ?? process.env.npm_package_version ?? "local";
 }
 
-export async function recordProductEvent(input: unknown, userId: string | null) {
+export async function recordProductEvent(input: unknown, userId: string | null, database?: AppDatabase) {
   const event = ProductEventSchema.parse(input);
   const occurredAt = new Date(event.occurredAt);
   if (occurredAt.getTime() > Date.now() + 5 * 60_000) throw new Error("EVENT_TIME_IN_FUTURE");
 
-  const db = await getDatabase();
+  const db = database ?? await getDatabase();
   const assignment = userId
     ? await db.prepare("SELECT experiment_key AS experimentKey, variant FROM experiment_assignments WHERE user_id = ? AND experiment_key = ?").get<{ experimentKey: string; variant: string }>(userId, briefingPriorityExperiment.key)
     : undefined;
@@ -69,6 +69,7 @@ export async function recordServerProductEvent(
   userId: string,
   path: string,
   properties: Record<string, string | number | boolean | null> = {},
+  database?: AppDatabase,
 ) {
   const eventId = randomUUID();
   await recordProductEvent({
@@ -85,6 +86,6 @@ export async function recordServerProductEvent(
       userSegment: "unknown",
     },
     properties,
-  }, userId);
+  }, userId, database);
   return eventId;
 }

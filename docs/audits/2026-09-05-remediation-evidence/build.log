@@ -1,0 +1,54 @@
+
+> @jipjigi/web@1.0.0 build /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/apps/web
+> next build
+
+▲ Next.js 16.3.3 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.ts took 394ms
+- Experiments (use with caution):
+  · optimizePackageImports
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 5.4s
+  Running TypeScript ...
+  Finished TypeScript in 3.8s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/19) ...
+  Generating static pages using 7 workers (4/19)
+  Generating static pages using 7 workers (9/19)
+  Generating static pages using 7 workers (14/19)
+✓ Generating static pages using 7 workers (19/19) in 8.9s
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /api/events
+├ ƒ /api/health
+├ ƒ /api/mobile/v1/briefing
+├ ƒ /api/operations
+├ ƒ /api/preferences
+├ ƒ /api/vitals
+├ ƒ /api/webhooks/messages
+├ ƒ /api/webhooks/renewal-responses
+├ ƒ /api/workspace/[resource]
+├ ƒ /app
+├ ƒ /app/contracts
+├ ƒ /app/growth
+├ ƒ /app/ledger
+├ ƒ /app/maintenance
+├ ƒ /app/messages
+├ ƒ /app/settings
+├ ○ /apple-icon.png
+├ ○ /icon.svg
+├ ƒ /login
+├ ○ /manifest.webmanifest
+├ ƒ /rental-management/[district]
+├ ○ /robots.txt
+└ ○ /sitemap.xml
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand

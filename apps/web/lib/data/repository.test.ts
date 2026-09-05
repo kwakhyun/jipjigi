@@ -70,6 +70,47 @@ describe("계약 관리와 메시지 센터의 PostgreSQL 조회", () => {
 });
 
 describe("브리핑과 그로스 지표의 문서 계약", () => {
+  it("대표 카드 수와 전체 확인 건수를 구분하고 한 번의 조회로 같은 세대의 중복을 제거한다", async () => {
+    const db = await getDatabase();
+    const original = await repository.getDashboardSnapshot("owner-1", "building-seongsu");
+    await db.prepare("UPDATE charges SET status = 'overdue' WHERE id = 'charge-2026-08-501'").run();
+    await db.prepare(`INSERT INTO maintenance_requests (id, unit_id, title, description, priority, status, requested_at, updated_at)
+      VALUES ('maintenance-extra', 'unit-seongsu-501', '추가 수리', '확인 요청', 'normal', 'received', ?, ?)`).run(new Date().toISOString(), new Date().toISOString());
+    try {
+      const query = vi.spyOn(db, "query");
+      const snapshot = await repository.getDashboardSnapshot("owner-1", "building-seongsu");
+      expect(query).toHaveBeenCalledTimes(1);
+      query.mockRestore();
+      expect(snapshot.attention.overdue).toBe(original.attention.overdue + 1);
+      expect(snapshot.attention.maintenance).toBe(original.attention.maintenance + 1);
+      expect(snapshot.attention.total).toBe(original.attention.total + 2);
+      expect(snapshot.attention.affectedUnits).toBe(original.attention.affectedUnits);
+      expect(Object.values(snapshot.briefing).filter(Boolean)).toHaveLength(3);
+      expect(snapshot.attention.total).toBeGreaterThan(3);
+      await expect(repository.getDashboardSnapshot("operator-1", "building-seongsu")).rejects.toThrow("BUILDING_NOT_FOUND");
+    } finally {
+      vi.restoreAllMocks();
+      await db.prepare("DELETE FROM maintenance_requests WHERE id = 'maintenance-extra'").run();
+      await db.prepare("UPDATE charges SET status = 'paid' WHERE id = 'charge-2026-08-501'").run();
+    }
+  });
+
+  it("이미 적용한 마이그레이션은 스키마와 업무 데이터를 다시 변경하지 않는다", async () => {
+    const db = await getDatabase();
+    const { migrateDatabase } = await import("@/lib/db/migrations");
+    const before = await db.prepare("SELECT * FROM schema_migrations ORDER BY version").all();
+    const contracts = await repository.listContracts("owner-1");
+    const { AppDatabase } = await import("@/lib/db/client");
+    const exec = vi.spyOn(AppDatabase.prototype, "exec");
+    await migrateDatabase(db);
+    expect(exec).toHaveBeenCalledTimes(1);
+    expect(exec.mock.calls[0]?.[0]).toContain("CREATE TABLE IF NOT EXISTS schema_migrations");
+    exec.mockRestore();
+    expect(await db.prepare("SELECT * FROM schema_migrations ORDER BY version").all()).toEqual(before);
+    expect(before).toHaveLength(5);
+    expect(await repository.listContracts("owner-1")).toEqual(contracts);
+  });
+
   it("알림 표시 설정을 끄고 켤 때 홈만 바뀌고 원본 계약·장부는 유지한다", async () => {
     const original = await repository.getPreferences("owner-1");
     const settings = { rentReminder: false, renewalReminder: false, maintenanceUpdates: false, marketing: false, quietHoursStart: "22:00", quietHoursEnd: "09:00" };

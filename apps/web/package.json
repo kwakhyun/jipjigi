@@ -11,7 +11,9 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:setup": "playwright install chromium",
-    "db:reset": "tsx scripts/reset-db.ts"
+    "db:reset": "tsx scripts/reset-db.ts",
+    "db:migrate": "tsx scripts/migrate-db.ts --seed-demo",
+    "db:setup": "tsx scripts/migrate-db.ts --seed-demo"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",

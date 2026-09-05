@@ -1,0 +1,27 @@
+{
+  "date": "2026-09-05",
+  "environment": "localhost:3118, disposable PGlite demo workspace",
+  "paid_charge_notice": {
+    "initial_charge_status": "paid",
+    "http_status": 200,
+    "message_status": "accepted",
+    "duplicate": false,
+    "external_delivery": false
+  },
+  "two_parallel_payment_requests": [
+    { "http_status": 200, "status": "paid", "unchanged": false },
+    { "http_status": 200, "status": "paid", "unchanged": true }
+  ],
+  "two_parallel_renewal_requests": {
+    "http_statuses": [200, 200],
+    "same_message_id": true,
+    "duplicate_flags": [false, true],
+    "race_reproduced": false
+  },
+  "mobile_ledger_all_paid": {
+    "viewport_width": 393,
+    "body_scroll_width": 393,
+    "table_width": 452.296875,
+    "scroll_area_width": 359
+  }
+}

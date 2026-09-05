@@ -1,0 +1,307 @@
+• turbo 2.10.12
+
+   • Packages in scope: @jipjigi/analytics, @jipjigi/domain, @jipjigi/experiments, @jipjigi/ui, @jipjigi/web
+   • Running test in 5 packages
+   • Remote caching disabled
+
+@jipjigi/analytics:test: cache bypass, force executing dff45d3a418e6ac0
+@jipjigi/analytics:build: cache bypass, force executing 8ba356b4543a09ed
+@jipjigi/domain:test: cache bypass, force executing c02248d851871b62
+@jipjigi/experiments:build: cache bypass, force executing ca8d4862e528aa78
+@jipjigi/domain:build: cache bypass, force executing 22d5324384c08bee
+@jipjigi/ui:build: cache bypass, force executing b2099aa8630e4ed1
+@jipjigi/experiments:test: cache bypass, force executing c3a54482c6f9c394
+@jipjigi/ui:test: cache bypass, force executing 028694cee7f3668c
+@jipjigi/domain:build:
+@jipjigi/domain:build: > @jipjigi/domain@1.0.0 build /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/domain
+@jipjigi/domain:build: > tsc --noEmit
+@jipjigi/domain:build:
+@jipjigi/analytics:test:
+@jipjigi/analytics:test: > @jipjigi/analytics@1.0.0 test /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/analytics
+@jipjigi/analytics:test: > vitest run
+@jipjigi/analytics:test:
+@jipjigi/analytics:build:
+@jipjigi/analytics:build: > @jipjigi/analytics@1.0.0 build /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/analytics
+@jipjigi/analytics:build: > tsc --noEmit
+@jipjigi/analytics:build:
+@jipjigi/ui:test:
+@jipjigi/ui:test: > @jipjigi/ui@1.0.0 test /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/ui
+@jipjigi/ui:test: > vitest run --passWithNoTests
+@jipjigi/ui:test:
+@jipjigi/experiments:test:
+@jipjigi/experiments:test: > @jipjigi/experiments@1.0.0 test /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/experiments
+@jipjigi/experiments:test: > vitest run
+@jipjigi/experiments:test:
+@jipjigi/experiments:build:
+@jipjigi/experiments:build: > @jipjigi/experiments@1.0.0 build /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/experiments
+@jipjigi/experiments:build: > tsc --noEmit
+@jipjigi/experiments:build:
+@jipjigi/ui:build:
+@jipjigi/ui:build: > @jipjigi/ui@1.0.0 build /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/ui
+@jipjigi/ui:build: > tsc --noEmit
+@jipjigi/ui:build:
+@jipjigi/domain:test:
+@jipjigi/domain:test: > @jipjigi/domain@1.0.0 test /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/domain
+@jipjigi/domain:test: > vitest run --passWithNoTests
+@jipjigi/domain:test:
+@jipjigi/web:test: cache bypass, force executing c3c3686d03097602
+@jipjigi/analytics:test:
+@jipjigi/analytics:test:  RUN  v4.1.11 /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/analytics
+@jipjigi/analytics:test:
+@jipjigi/ui:test:
+@jipjigi/ui:test:  RUN  v4.1.11 /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/ui
+@jipjigi/ui:test:
+@jipjigi/experiments:test:
+@jipjigi/experiments:test:  RUN  v4.1.11 /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/experiments
+@jipjigi/experiments:test:
+@jipjigi/ui:test: No test files found, exiting with code 0
+@jipjigi/ui:test: include: **/*.{test,spec}.?(c|m)[jt]s?(x)
+@jipjigi/ui:test: exclude:  **/node_modules/**, **/.git/**
+@jipjigi/ui:test:
+@jipjigi/ui:test:
+@jipjigi/domain:test:
+@jipjigi/domain:test:  RUN  v4.1.11 /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/domain
+@jipjigi/domain:test:
+@jipjigi/experiments:test:  ✓ src/index.test.ts (2 tests) 10ms
+@jipjigi/experiments:test:
+@jipjigi/experiments:test:  Test Files  1 passed (1)
+@jipjigi/experiments:test:       Tests  2 passed (2)
+@jipjigi/experiments:test:    Start at  12:48:46
+@jipjigi/experiments:test:    Duration  11.47s (transform 1.30s, setup 0ms, import 2.31s, tests 10ms, environment 0ms)
+@jipjigi/experiments:test:
+@jipjigi/web:test:
+@jipjigi/web:test: > @jipjigi/web@1.0.0 test /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/apps/web
+@jipjigi/web:test: > vitest run
+@jipjigi/web:test:
+@jipjigi/analytics:test:  ✓ src/index.test.ts (4 tests) 855ms
+@jipjigi/analytics:test:      ✓ 납부 이벤트의 필수 속성과 완료 상태를 검사한다  440ms
+@jipjigi/analytics:test:      ✓ 위험 근거 이벤트는 실제 대상 식별자가 필요하다  388ms
+@jipjigi/analytics:test:
+@jipjigi/analytics:test:  Test Files  1 passed (1)
+@jipjigi/analytics:test:       Tests  4 passed (4)
+@jipjigi/analytics:test:    Start at  12:48:45
+@jipjigi/analytics:test:    Duration  14.04s (transform 2.07s, setup 0ms, import 5.11s, tests 855ms, environment 0ms)
+@jipjigi/analytics:test:
+@jipjigi/domain:test:  ✓ src/index.test.ts (2 tests) 41ms
+@jipjigi/domain:test:
+@jipjigi/domain:test:  Test Files  1 passed (1)
+@jipjigi/domain:test:       Tests  2 passed (2)
+@jipjigi/domain:test:    Start at  12:48:46
+@jipjigi/domain:test:    Duration  13.32s (transform 1.51s, setup 0ms, import 4.08s, tests 41ms, environment 0ms)
+@jipjigi/domain:test:
+@jipjigi/web:test:
+@jipjigi/web:test:  RUN  v4.1.11 /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/apps/web
+@jipjigi/web:test:
+@jipjigi/web:test:  ❯ app/api/webhooks/messages/route.test.ts (2 tests | 1 failed) 174845ms
+@jipjigi/web:test:      × 전달, 갱신 응답과 수신 해제를 계약 타임라인과 제품 이벤트에 저장한다 163759ms
+@jipjigi/web:test:      ✓ 클라이언트가 보낸 값 대신 서버 릴리스 버전을 저장한다  562ms
+@jipjigi/web:test:  ❯ lib/data/repository.test.ts (4 tests | 1 failed) 179983ms
+@jipjigi/web:test:      × 발송 내역이 없는 초기 데이터에서도 두 화면의 조회가 성공한다 158922ms
+@jipjigi/web:test:      ✓ 발송 이벤트와 갱신 응답을 합쳐 최신순으로 정렬하고 다른 계정에는 노출하지 않는다  1332ms
+@jipjigi/web:test:      ✓ 알림 표시 설정을 끄고 켤 때 홈만 바뀌고 원본 계약·장부는 유지한다  5572ms
+@jipjigi/web:test:      ✓ 전달 전, 다른 채널, 미래 수신 해제를 제외하고 전달 이후의 계약만 집계한다  7150ms
+@jipjigi/web:test:  ❯ lib/auth/dal.test.ts (3 tests | 1 failed) 96398ms
+@jipjigi/web:test:      × 토큰이 발급된 뒤 역할이 바뀌면 데이터베이스의 현재 역할을 사용한다 90142ms
+@jipjigi/web:test:      ✓ 삭제된 사용자의 아직 만료되지 않은 토큰을 거부한다  890ms
+@jipjigi/web:test:      ✓ 기존 공유 데모 세션과 만료된 개인 공간 세션을 거부한다  1635ms
+@jipjigi/web:test:  ❯ lib/demo/workspace.test.ts (9 tests | 9 skipped) 95593ms
+@jipjigi/web:test:      ↓ 두 방문자에 서로 다른 25개 계약을 만들고 역할 전환 때 같은 공간을 재사용한다
+@jipjigi/web:test:      ↓ 다른 공간의 리소스 변경은 거부하고 자신의 수리 완료만 반영한다
+@jipjigi/web:test:      ↓ 제품 이벤트, 실험 배정, CRM과 RUM을 해당 공간의 계정으로만 집계한다
+@jipjigi/web:test:      ↓ 타인 공간 초기화는 거부하고 본인 초기화는 새 ID와 깨끗한 데이터로 교체한다
+@jipjigi/web:test:      ↓ 만료된 공간을 재사용하지 않고 오래된 데모 데이터만 정리한다
+@jipjigi/web:test:      ↓ 공간 상한에 도달하면 활성 사용자의 데이터를 지우지 않고 생성을 거부한다
+@jipjigi/web:test:      ↓ 2026-08-31T15:10:00.000Z에도 한국 날짜로 청구월과 D-28 계약을 만든다
+@jipjigi/web:test:      ↓ 2027-12-31T15:10:00.000Z에도 한국 날짜로 청구월과 D-28 계약을 만든다
+@jipjigi/web:test:      ↓ 2028-02-28T15:10:00.000Z에도 한국 날짜로 청구월과 D-28 계약을 만든다
+@jipjigi/web:test:  ✓ components/query-state.test.tsx (5 tests) 27841ms
+@jipjigi/web:test:      ✓ 최근 청구월을 기본으로 표시하고 월 선택에 맞춰 목록과 합계를 함께 바꾼다  11828ms
+@jipjigi/web:test:      ✓ 입금은 서버 확인 뒤 반영하고 공유 중인 메시지 대상과 브리핑 캐시도 갱신한다  8620ms
+@jipjigi/web:test:      ✓ 변경 실패를 자동 재실행하거나 납부 완료로 표시하지 않는다  3225ms
+@jipjigi/web:test:      ✓ 재조회 실패에는 기존 목록과 오류를 표시하고 수동 새로고침으로 복구한다  2495ms
+@jipjigi/web:test:      ✓ 세션이 만료되면 캐시에 남은 임차인 정보를 숨기고 로그인을 안내한다  1665ms
+@jipjigi/web:test:  ❯ lib/operations/service.test.ts (3 tests | 1 failed) 103838ms
+@jipjigi/web:test:      × 시간과 소유권을 검증한 뒤 일정과 감사 로그를 함께 저장한다 98553ms
+@jipjigi/web:test:      ✓ 같은 청구월의 미납 안내를 하나의 서버 멱등 키로 합친다  943ms
+@jipjigi/web:test:      ✓ 실패한 메시지를 같은 기록에서 재접수하고 타임라인을 남긴다  1389ms
+@jipjigi/web:test:  ✓ components/app-shell.test.tsx (4 tests) 33439ms
+@jipjigi/web:test:      ✓ 임대인 모바일 헤더에서 설정과 로그아웃 화면으로 이동할 수 있다  14196ms
+@jipjigi/web:test:      ✓ 자동 접근성 검사에서 위반이 없다  13218ms
+@jipjigi/web:test:      ✓ owner 계정의 모든 화면에서 로그아웃과 반대 데모 전환을 제공한다  2879ms
+@jipjigi/web:test:      ✓ operator 계정의 모든 화면에서 로그아웃과 반대 데모 전환을 제공한다  3143ms
+@jipjigi/web:test:  ✓ app/login/login-form.test.tsx (4 tests) 22078ms
+@jipjigi/web:test:      ✓ 탭을 바꾸면 계정, 설명, 제출 목적지와 버튼이 함께 바뀐다  14681ms
+@jipjigi/web:test:      ✓ 그로스 링크로 들어와도 임대인 데모를 선택할 수 있다  1193ms
+@jipjigi/web:test:      ✓ 데모를 끄면 역할 선택과 미리 채운 인증 정보가 없다  604ms
+@jipjigi/web:test:      ✓ 역할 설명을 포함한 로그인 폼의 접근성 검사에서 위반이 없다  5597ms
+@jipjigi/web:test:  ✓ components/dashboard/dashboard-view.test.tsx (3 tests) 7831ms
+@jipjigi/web:test:      ✓ 조정 예시를 시세로 표현하지 않고 미리보기 링크를 제공한다  5970ms
+@jipjigi/web:test:      ✓ 숨긴 알림을 특이 사항 없음으로 안내하지 않는다  687ms
+@jipjigi/web:test:      ✓ 새 달에 지난 청구월을 이달로 표현하거나 만료 날짜에 이중 음수를 쓰지 않는다  975ms
+@jipjigi/web:test:  ✓ components/messages/messages-view.test.tsx (4 tests) 11152ms
+@jipjigi/web:test:      ✓ 진입 대상의 문구를 먼저 표시하고 명시적인 접수 때만 서버를 호출한다  9689ms
+@jipjigi/web:test:      ✓ 유효하지 않은 대상은 다른 임차인으로 자동 대체하지 않는다  681ms
+@jipjigi/web:test:      ✓ 서버에서 받은 시간 설정과 예약의 데모 범위를 안내한다  597ms
+@jipjigi/web:test:  ✓ app/login/page.test.tsx (3 tests) 9017ms
+@jipjigi/web:test:      ✓ owner 로그인 상태에서 operator 데모 링크를 열어도 강제 이동하지 않는다  7187ms
+@jipjigi/web:test:      ✓ operator 로그인 상태에서 owner 데모 링크를 열어도 강제 이동하지 않는다  1507ms
+@jipjigi/web:test:      ✓ 일반 서비스 모드의 기존 로그인 리다이렉트는 유지한다  319ms
+@jipjigi/web:test:  ✓ components/demo-controls.test.tsx (3 tests) 10353ms
+@jipjigi/web:test:      ✓ risk-first 구성을 보여주고 초기화 동의를 요구한다  6078ms
+@jipjigi/web:test:      ✓ agenda-first 구성을 보여주고 초기화 동의를 요구한다  1441ms
+@jipjigi/web:test:      ✓ 입력 이름, 역할과 안내가 자동 접근성 검사를 통과한다  2829ms
+@jipjigi/web:test:  ✓ components/query-hydration.test.tsx (3 tests) 2381ms
+@jipjigi/web:test:      ✓ 서버에서 준비한 데이터로 첫 화면을 만들고 즉시 중복 조회하지 않는다  969ms
+@jipjigi/web:test:      ✓ 더 최근의 서버 응답은 이미 존재하는 클라이언트 캐시에도 반영된다  418ms
+@jipjigi/web:test:      ✓ 같은 계정의 화면 이동에는 캐시를 유지하고 계정 키가 바뀌면 새로 만든다  990ms
+@jipjigi/web:test:  ✓ components/marketing-header.test.tsx (2 tests) 8241ms
+@jipjigi/web:test:      ✓ 핵심 공개 경로를 접근 가능한 이름으로 제공한다  5279ms
+@jipjigi/web:test:      ✓ 자동 접근성 검사에서 위반이 없다  2957ms
+@jipjigi/web:test:  ✓ lib/query/invalidation.test.ts (10 tests) 1438ms
+@jipjigi/web:test:      ✓ 요청 취소 신호를 전달하고 다른 탭에서 계정이 바뀐 응답은 캐시에 넣지 않는다  1042ms
+@jipjigi/web:test:  ✓ app/login/actions.test.ts (8 tests) 1196ms
+@jipjigi/web:test:      ✓ owner 계정의 실제 권한으로 세션과 이동 경로를 갱신한다  903ms
+@jipjigi/web:test:  ✓ lib/messaging/guardrails.test.ts (4 tests) 703ms
+@jipjigi/web:test:      ✓ schedules messages sent during Seoul quiet hours  690ms
+@jipjigi/web:test:  ✓ app/app/demo-actions.test.ts (4 tests) 705ms
+@jipjigi/web:test:      ✓ 클라이언트 공간 ID를 무시하고 인증된 공간만 초기화한 뒤 새 사용자로 이동한다  517ms
+@jipjigi/web:test:  ✓ lib/auth/demo-cookie.test.ts (2 tests) 26ms
+@jipjigi/web:test:  ✓ lib/analytics/server.test.ts (8 tests) 691ms
+@jipjigi/web:test:      ✓ 서버 전용 payment_marked를 브라우저에서 기록하지 못한다  475ms
+@jipjigi/web:test:  ✓ app/api/workspace/[resource]/route.test.ts (8 tests) 458ms
+@jipjigi/web:test:      ✓ messages를 세션 소유자로만 조회하고 공유 캐시를 금지한다  311ms
+@jipjigi/web:test:  ✓ app/api/events/route.test.ts (1 test) 569ms
+@jipjigi/web:test:      ✓ 브라우저 전용 수집 경로를 사용하고 검증 실패를 400으로 반환한다  343ms
+@jipjigi/web:test:  ✓ lib/security/request.test.ts (3 tests) 63ms
+@jipjigi/web:test:  ✓ lib/performance/schema.test.ts (2 tests) 817ms
+@jipjigi/web:test:      ✓ 알 수 없는 지표와 외부 경로를 거부한다  783ms
+@jipjigi/web:test:  ✓ lib/auth/navigation.test.ts (10 tests) 237ms
+@jipjigi/web:test:  ✓ proxy.test.ts (2 tests) 14ms
+@jipjigi/web:test:  ✓ lib/format/date.test.ts (4 tests) 213ms
+@jipjigi/web:test:  ✓ lib/messaging/webhook.test.ts (2 tests) 84ms
+@jipjigi/web:test:
+@jipjigi/web:test: ⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+@jipjigi/web:test:
+@jipjigi/web:test:  FAIL  lib/demo/workspace.test.ts [ lib/demo/workspace.test.ts ]
+@jipjigi/web:test: Error: Hook timed out in 30000ms.
+@jipjigi/web:test: If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+@jipjigi/web:test:  ❯ lib/demo/workspace.test.ts:16:1
+@jipjigi/web:test:      14| let first: DemoWorkspace;
+@jipjigi/web:test:      15| let second: DemoWorkspace;
+@jipjigi/web:test:      16| beforeAll(async () => {
+@jipjigi/web:test:        | ^
+@jipjigi/web:test:      17|   vi.stubEnv("ALLOW_DEMO_AUTH", "true");
+@jipjigi/web:test:      18|   first = await enterDemoWorkspace();
+@jipjigi/web:test:
+@jipjigi/web:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+@jipjigi/web:test:
+@jipjigi/web:test:
+@jipjigi/web:test: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+@jipjigi/web:test:
+@jipjigi/web:test:  FAIL  lib/data/repository.test.ts > 계약 관리와 메시지 센터의 PostgreSQL 조회 > 발송 내역이 없는 초기 데이터에서도 두 화면의 조회가 성공한다
+@jipjigi/web:test: Error: Test timed out in 30000ms.
+@jipjigi/web:test: If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+@jipjigi/web:test:  ❯ lib/data/repository.test.ts:28:3
+@jipjigi/web:test:      26|
+@jipjigi/web:test:      27| describe("계약 관리와 메시지 센터의 PostgreSQL 조회", () => {
+@jipjigi/web:test:      28|   it("발송 내역이 없는 초기 데이터에서도 두 화면의 조회가 성공한다", async () => {
+@jipjigi/web:test:        |   ^
+@jipjigi/web:test:      29|     const [contracts, messages, charges] = await Promise.all([
+@jipjigi/web:test:      30|       repository.listContracts("owner-1"),
+@jipjigi/web:test:
+@jipjigi/web:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+@jipjigi/web:test:
+@jipjigi/web:test:  FAIL  lib/operations/service.test.ts > 수리 방문 일정 저장 > 시간과 소유권을 검증한 뒤 일정과 감사 로그를 함께 저장한다
+@jipjigi/web:test: Error: Test timed out in 30000ms.
+@jipjigi/web:test: If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+@jipjigi/web:test:  ❯ lib/operations/service.test.ts:29:3
+@jipjigi/web:test:      27|
+@jipjigi/web:test:      28| describe("수리 방문 일정 저장", () => {
+@jipjigi/web:test:      29|   it("시간과 소유권을 검증한 뒤 일정과 감사 로그를 함께 저장한다", async () => {
+@jipjigi/web:test:        |   ^
+@jipjigi/web:test:      30|     await expect(runOperation("owner-1", {
+@jipjigi/web:test:      31|       type: "update_maintenance",
+@jipjigi/web:test:
+@jipjigi/web:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+@jipjigi/web:test:
+@jipjigi/web:test:  FAIL  lib/auth/dal.test.ts > API 세션 재검증 > 토큰이 발급된 뒤 역할이 바뀌면 데이터베이스의 현재 역할을 사용한다
+@jipjigi/web:test: Error: Test timed out in 30000ms.
+@jipjigi/web:test: If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+@jipjigi/web:test:  ❯ lib/auth/dal.test.ts:36:3
+@jipjigi/web:test:      34|
+@jipjigi/web:test:      35| describe("API 세션 재검증", () => {
+@jipjigi/web:test:      36|   it("토큰이 발급된 뒤 역할이 바뀌면 데이터베이스의 현재 역할을 사용한다", async () => {
+@jipjigi/web:test:        |   ^
+@jipjigi/web:test:      37|     const token = await createSessionToken({ userId: "auth-test-owner"…
+@jipjigi/web:test:      38|     const database = await getDatabase();
+@jipjigi/web:test:
+@jipjigi/web:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+@jipjigi/web:test:
+@jipjigi/web:test:  FAIL  app/api/webhooks/messages/route.test.ts > CRM 공급자 웹훅 > 전달, 갱신 응답과 수신 해제를 계약 타임라인과 제품 이벤트에 저장한다
+@jipjigi/web:test: Error: Test timed out in 30000ms.
+@jipjigi/web:test: If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+@jipjigi/web:test:  ❯ app/api/webhooks/messages/route.test.ts:52:3
+@jipjigi/web:test:      50|
+@jipjigi/web:test:      51| describe("CRM 공급자 웹훅", () => {
+@jipjigi/web:test:      52|   it("전달, 갱신 응답과 수신 해제를 계약 타임라인과 제품 이벤트에 저장한다", async () => {
+@jipjigi/web:test:        |   ^
+@jipjigi/web:test:      53|     const result = await runOperation("owner-1", { type: "start_renewa…
+@jipjigi/web:test:      54|     if (!("id" in result)) throw new Error("메시지 결과가 필요합니다.");
+@jipjigi/web:test:
+@jipjigi/web:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+@jipjigi/web:test:
+@jipjigi/web:test: ⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+@jipjigi/web:test:
+@jipjigi/web:test: Vitest caught 3 unhandled errors during the test run.
+@jipjigi/web:test: This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+@jipjigi/web:test:
+@jipjigi/web:test: ⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+@jipjigi/web:test: Error: [vitest-pool]: Failed to start forks worker for test files /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/apps/web/components/maintenance/maintenance-view.test.tsx.
+@jipjigi/web:test:  ❯ ../../../%EC%9E%90%EB%A6%AC%ED%86%A1%20%ED%94%84%EB%A1%A0%ED%8A%B8%EC%97%94%EB%93%9C%20%ED%8F%AC%ED%8A%B8%ED%8F%B4%EB%A6%AC%EC%98%A4%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/node_modules/.pnpm/vitest@4.1.11_@types+node@26.4.0_jsdom@30.0.1_vite@8.2.2_@types+node@26.4.0_esbuild@0.28.2_tsx@4.23.12_/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3532:94
+@jipjigi/web:test:  ❯ Pool.schedule ../../../%EC%9E%90%EB%A6%AC%ED%86%A1%20%ED%94%84%EB%A1%A0%ED%8A%B8%EC%97%94%EB%93%9C%20%ED%8F%AC%ED%8A%B8%ED%8F%B4%EB%A6%AC%EC%98%A4%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/node_modules/.pnpm/vitest@4.1.11_@types+node@26.4.0_jsdom@30.0.1_vite@8.2.2_@types+node@26.4.0_esbuild@0.28.2_tsx@4.23.12_/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3532:5
+@jipjigi/web:test:
+@jipjigi/web:test: Caused by: Error: [vitest-pool-runner]: Timeout waiting for worker to respond
+@jipjigi/web:test:  ❯ Timeout.<anonymous> ../../../%EC%9E%90%EB%A6%AC%ED%86%A1%20%ED%94%84%EB%A1%A0%ED%8A%B8%EC%97%94%EB%93%9C%20%ED%8F%AC%ED%8A%B8%ED%8F%B4%EB%A6%AC%EC%98%A4%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/node_modules/.pnpm/vitest@4.1.11_@types+node@26.4.0_jsdom@30.0.1_vite@8.2.2_@types+node@26.4.0_esbuild@0.28.2_tsx@4.23.12_/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3108:58
+@jipjigi/web:test:  ❯ listOnTimeout node:internal/timers:588:17
+@jipjigi/web:test:  ❯ processTimers node:internal/timers:523:7
+@jipjigi/web:test:
+@jipjigi/web:test:
+@jipjigi/web:test: ⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+@jipjigi/web:test: Error: [vitest-pool]: Failed to start forks worker for test files /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/apps/web/components/settings/settings-form.test.tsx.
+@jipjigi/web:test:  ❯ ../../../%EC%9E%90%EB%A6%AC%ED%86%A1%20%ED%94%84%EB%A1%A0%ED%8A%B8%EC%97%94%EB%93%9C%20%ED%8F%AC%ED%8A%B8%ED%8F%B4%EB%A6%AC%EC%98%A4%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/node_modules/.pnpm/vitest@4.1.11_@types+node@26.4.0_jsdom@30.0.1_vite@8.2.2_@types+node@26.4.0_esbuild@0.28.2_tsx@4.23.12_/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3532:94
+@jipjigi/web:test:  ❯ Pool.schedule ../../../%EC%9E%90%EB%A6%AC%ED%86%A1%20%ED%94%84%EB%A1%A0%ED%8A%B8%EC%97%94%EB%93%9C%20%ED%8F%AC%ED%8A%B8%ED%8F%B4%EB%A6%AC%EC%98%A4%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/node_modules/.pnpm/vitest@4.1.11_@types+node@26.4.0_jsdom@30.0.1_vite@8.2.2_@types+node@26.4.0_esbuild@0.28.2_tsx@4.23.12_/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3532:5
+@jipjigi/web:test:
+@jipjigi/web:test: Caused by: Error: [vitest-pool-runner]: Timeout waiting for worker to respond
+@jipjigi/web:test:  ❯ Timeout.<anonymous> ../../../%EC%9E%90%EB%A6%AC%ED%86%A1%20%ED%94%84%EB%A1%A0%ED%8A%B8%EC%97%94%EB%93%9C%20%ED%8F%AC%ED%8A%B8%ED%8F%B4%EB%A6%AC%EC%98%A4%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/node_modules/.pnpm/vitest@4.1.11_@types+node@26.4.0_jsdom@30.0.1_vite@8.2.2_@types+node@26.4.0_esbuild@0.28.2_tsx@4.23.12_/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3108:58
+@jipjigi/web:test:  ❯ listOnTimeout node:internal/timers:588:17
+@jipjigi/web:test:  ❯ processTimers node:internal/timers:523:7
+@jipjigi/web:test:
+@jipjigi/web:test:
+@jipjigi/web:test: ⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+@jipjigi/web:test: Error: [vitest-pool]: Failed to start forks worker for test files /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/apps/web/components/marketing-hero-preview.test.tsx.
+@jipjigi/web:test:  ❯ ../../../%EC%9E%90%EB%A6%AC%ED%86%A1%20%ED%94%84%EB%A1%A0%ED%8A%B8%EC%97%94%EB%93%9C%20%ED%8F%AC%ED%8A%B8%ED%8F%B4%EB%A6%AC%EC%98%A4%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/node_modules/.pnpm/vitest@4.1.11_@types+node@26.4.0_jsdom@30.0.1_vite@8.2.2_@types+node@26.4.0_esbuild@0.28.2_tsx@4.23.12_/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3532:94
+@jipjigi/web:test:  ❯ Pool.schedule ../../../%EC%9E%90%EB%A6%AC%ED%86%A1%20%ED%94%84%EB%A1%A0%ED%8A%B8%EC%97%94%EB%93%9C%20%ED%8F%AC%ED%8A%B8%ED%8F%B4%EB%A6%AC%EC%98%A4%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/node_modules/.pnpm/vitest@4.1.11_@types+node@26.4.0_jsdom@30.0.1_vite@8.2.2_@types+node@26.4.0_esbuild@0.28.2_tsx@4.23.12_/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3532:5
+@jipjigi/web:test:
+@jipjigi/web:test: Caused by: Error: [vitest-pool-runner]: Timeout waiting for worker to respond
+@jipjigi/web:test:  ❯ Timeout.<anonymous> ../../../%EC%9E%90%EB%A6%AC%ED%86%A1%20%ED%94%84%EB%A1%A0%ED%8A%B8%EC%97%94%EB%93%9C%20%ED%8F%AC%ED%8A%B8%ED%8F%B4%EB%A6%AC%EC%98%A4%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/node_modules/.pnpm/vitest@4.1.11_@types+node@26.4.0_jsdom@30.0.1_vite@8.2.2_@types+node@26.4.0_esbuild@0.28.2_tsx@4.23.12_/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3108:58
+@jipjigi/web:test:  ❯ listOnTimeout node:internal/timers:588:17
+@jipjigi/web:test:  ❯ processTimers node:internal/timers:523:7
+@jipjigi/web:test:
+@jipjigi/web:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+@jipjigi/web:test:
+@jipjigi/web:test:
+@jipjigi/web:test:  Test Files  5 failed | 23 passed (28)
+@jipjigi/web:test:       Tests  4 failed | 107 passed | 9 skipped (120)
+@jipjigi/web:test:      Errors  3 errors
+@jipjigi/web:test:    Start at  12:49:17
+@jipjigi/web:test:    Duration  734.95s (transform 28.29s, setup 0ms, import 132.33s, tests 790.20s, environment 217.21s)
+@jipjigi/web:test:
+@jipjigi/web:test:  ELIFECYCLE  Test failed. See above for more details.
+@jipjigi/web#test:  ERROR  command (/Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/apps/web) /Users/kwakhyun/.nvm/versions/node/v22.21.0/bin/pnpm run test exited (1)
+
+ Tasks:    8 successful, 9 total
+Cached:    0 cached, 9 total
+  Time:    13m32.845s
+Failed:    @jipjigi/web#test
+
+ ERROR  run failed: command  exited (1)

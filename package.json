@@ -15,7 +15,9 @@
     "test:e2e": "pnpm --filter @jipjigi/web test:e2e",
     "test:e2e:setup": "pnpm --filter @jipjigi/web test:e2e:setup",
     "verify": "pnpm typecheck && pnpm test && pnpm build && pnpm bundle:check",
-    "db:reset": "pnpm --filter @jipjigi/web db:reset"
+    "db:reset": "pnpm --filter @jipjigi/web db:reset",
+    "db:migrate": "pnpm --filter @jipjigi/web db:migrate",
+    "db:setup": "pnpm --filter @jipjigi/web db:setup"
   },
   "devDependencies": {
     "turbo": "2.10.12",

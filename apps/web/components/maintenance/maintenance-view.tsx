@@ -1,9 +1,10 @@
 "use client";
 
+import { Button, EmptyState, Field } from "@jipjigi/ui/components";
 import { useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarIcon, CheckCircledIcon, ClockIcon, GearIcon, HomeIcon } from "@radix-ui/react-icons";
-import type { MaintenanceRow } from "@/lib/data/repository";
+import type { MaintenanceRow } from "@/lib/data/types";
 import { formatKoreanScheduleDateTime, relativeDayLabel } from "@/lib/format/date";
 import { useTransientMessage } from "@/lib/hooks/use-transient-message";
 import { ownerResourceOptions } from "@/lib/query/options";
@@ -40,8 +41,8 @@ export function MaintenanceView({
   const scheduleVisit = async (event: FormEvent<HTMLFormElement>, request: MaintenanceRow) => {
     event.preventDefault();
     if (!scheduleValue) return;
-    const scheduledAt = new Date(`${scheduleValue}:00+09:00`).toISOString();
     try {
+      const scheduledAt = new Date(`${scheduleValue}:00+09:00`).toISOString();
       await operation.mutateAsync({ type: "update_maintenance", requestId: request.id, status: "scheduled", scheduledAt });
       setSchedulingId(null);
       setScheduleValue("");
@@ -66,18 +67,19 @@ export function MaintenanceView({
               <div className="maintenance-title"><span className="maintenance-icon"><GearIcon /></span><div><h3>{request.title}</h3><p><HomeIcon /> {request.buildingName} {request.unitName}</p></div></div>
               <p className="maintenance-description">{request.description}</p>
               <div className="maintenance-meta"><ClockIcon /><span>{request.status === "received" ? "방문 날짜와 시간을 정하면 임차인에게 일정을 공유할 수 있어요." : request.scheduledAt ? `${formatKoreanScheduleDateTime(request.scheduledAt)} 방문 예정` : "방문 일정이 등록됐어요."}</span></div>
-              {request.status === "received" && schedulingId === request.id ? (
+              {schedulingId === request.id ? (
                 <form className="maintenance-schedule-form" id={`schedule-${request.id}`} onSubmit={(event) => scheduleVisit(event, request)}>
-                  <label htmlFor={`schedule-at-${request.id}`}><CalendarIcon /><span>방문 날짜와 시간</span></label>
+                  <Field id={`schedule-at-${request.id}`} label="방문 날짜와 시간">
                   <input
                     id={`schedule-at-${request.id}`}
                     type="datetime-local"
                     value={scheduleValue}
-                    min={minimumScheduleValue(referenceTime)}
+                    min={minimumScheduleValue(new Date().toISOString())}
                     onChange={(event) => setScheduleValue(event.target.value)}
                     required
                     autoFocus
                   />
+                  </Field>
                   <p>임차인과 협의한 시간을 입력해 주세요. 시간은 한국 표준시를 기준으로 저장됩니다.</p>
                   <div>
                     <button className="button button-quiet" type="button" disabled={isPending} onClick={() => { setSchedulingId(null); setScheduleValue(""); }}>취소</button>
@@ -87,7 +89,10 @@ export function MaintenanceView({
               ) : request.status === "received" ? (
                 <button className="button button-primary button-wide" type="button" aria-expanded="false" aria-controls={`schedule-${request.id}`} disabled={isPending} onClick={() => { setSchedulingId(request.id); setScheduleValue(""); }}>방문 일정 정하기</button>
               ) : (
-                <button className="button button-secondary button-wide" type="button" disabled={isPending} onClick={() => completeRequest(request)}>{pendingId === request.id && isPending ? "저장 중…" : "수리 완료 처리"}</button>
+                <div className="maintenance-actions">
+                  <Button variant="quiet" disabled={isPending || maintenance.isError} onClick={() => { setSchedulingId(request.id); setScheduleValue(request.scheduledAt ? minimumScheduleValue(request.scheduledAt) : ""); }}>방문 일정 변경</Button>
+                  <Button variant="secondary" disabled={isPending || maintenance.isError} onClick={() => completeRequest(request)}>{pendingId === request.id && isPending ? "저장 중…" : "수리 완료 처리"}</Button>
+                </div>
               )}
             </article>
           ))}
@@ -105,7 +110,7 @@ export function MaintenanceView({
 }
 
 function Empty({ label }: { label: string }) {
-  return <div className="empty-state surface-card"><CheckCircledIcon /><strong>{label}</strong><span>처리 상태가 바뀌면 여기에 표시돼요.</span></div>;
+  return <EmptyState className="surface-card" title={label} description="처리 상태가 바뀌면 여기에 표시돼요." icon={<CheckCircledIcon />} />;
 }
 
 function minimumScheduleValue(referenceTime: string) {

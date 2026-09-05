@@ -14,6 +14,8 @@
 
 **바로 확인하기:** [라이브 데모](https://jipjigi-khyun.vercel.app), [GitHub Actions](https://github.com/kwakhyun/jipjigi/actions/workflows/ci.yml), [현재 및 목표 아키텍처](docs/ARCHITECTURE.md)
 
+제출한 포트폴리오 PDF의 화면과 검증 수치는 **2026-08-31 기준**입니다. 저장소에는 이후 **2026-09-05 오류 수정과 접근성 개선**을 반영했습니다. PDF의 기술 구성, 데모 체험 순서와 구현 범위는 유지하며, 테스트 수와 일부 화면 표현의 차이는 [제출본과 현재 버전의 정합성 확인](docs/SUBMISSION-COMPATIBILITY.md)에 정리했습니다.
+
 ## 데모 계정
 
 | 역할 | 이메일 | 비밀번호 | 확인할 수 있는 경험 |
@@ -74,9 +76,9 @@
 
 ### CRM 요청은 발송보다 운영 안전성을 먼저 확인합니다
 
-갱신 요청과 미납 안내는 곧바로 발송하지 않습니다. 서버에서 리소스 소유권, 수신 동의 여부와 발송 제한 시간을 다시 확인하고 목적에 맞는 멱등 키를 만듭니다. 갱신 요청은 계약별 24시간 1회와 최근 7일 2회로 제한하고, 미납 안내는 계약과 청구월별 한 번만 접수합니다. 전달 실패는 같은 메시지에서 재접수하며 전달 결과, 채널 수신 해제와 갱신 응답은 HMAC 웹훅을 거쳐 타임라인과 관제에 반영합니다.
+갱신 요청과 미납 안내는 곧바로 발송하지 않습니다. 서버 트랜잭션 안에서 리소스 소유권, 현재 미납 상태, 수신 동의 여부와 발송 제한 시간을 다시 확인하고 목적에 맞는 멱등 키를 만듭니다. 계약과 청구 행 잠금으로 동시 요청을 조정하고, 업무 상태와 메시지, 타임라인, 감사 로그, 제품 이벤트를 함께 저장하거나 함께 되돌립니다. 갱신 요청은 계약별 24시간 1회와 최근 7일 2회로 제한하고, 미납 안내는 계약과 청구월별 한 번만 접수합니다. 전달 실패는 같은 메시지에서 재접수하며 전달 결과, 채널 수신 해제와 갱신 응답은 HMAC 웹훅을 거쳐 타임라인과 관제에 반영합니다.
 
-홈, 계약 관리, 장부의 연락 버튼은 같은 메시지 센터로 연결됩니다. 대상과 문구를 확인한 뒤 접수하며, 설정한 발송 제한 시간도 표시합니다. 샌드박스는 예약 상태와 시각을 저장하지만 자동 발송 워커는 실행하지 않습니다.
+홈, 계약 관리, 장부의 연락 버튼은 같은 메시지 센터로 연결됩니다. 대상과 문구를 확인한 뒤 접수하며, 설정한 발송 제한 시간도 표시합니다. 발송함에서 접수, 예약, 전달 시각과 차단 사유를 구분해 확인합니다. 샌드박스는 예약 상태와 시각을 저장하지만 자동 발송 워커는 실행하지 않습니다.
 
 **구현 근거:** [발송 가드레일](apps/web/lib/messaging/guardrails.ts), [메시지 서비스](apps/web/lib/messaging/service.ts), [전달 웹훅](apps/web/app/api/webhooks/messages/route.ts), [갱신 응답 웹훅](apps/web/app/api/webhooks/renewal-responses/route.ts), [CRM 통합 테스트](apps/web/app/api/webhooks/messages/route.test.ts)
 
@@ -114,15 +116,15 @@ Browser
 
 | 대상 | 검증 결과 | 실행 근거 |
 | --- | --- | --- |
-| 웹 단위 및 통합 | 2026-08-31 개인 데모와 시간 표시 회귀 수정 후 31개 파일, 126개 테스트 통과. 공통 패키지 8개 추가 통과 | [최신 개선 사례](docs/case-studies/demo-reproducibility.md) |
-| 실제 웹앱 E2E | Chromium 핵심 여정 4개 통과. 저장 유지, 역할 전환, 방문자 격리, 두 홈 구성과 모바일 로그아웃 검증 | [범위와 실행 방법](docs/E2E.md) |
-| 타입과 빌드 | 개인 데모 변경 적용 후 5개 패키지 타입 검사와 Next.js 프로덕션 빌드 통과 | `pnpm verify`, 2026-08-31 |
-| 성능 예산 | 10개 경로 모두 기존 예산 통과. 실측값 / 예산: 홈 177.3KiB / 185KiB, 메시지 168.0KiB / 170KiB | [전후 측정값](docs/OBSERVABILITY.md) |
-| 접근성 | 주요 내비게이션, 수리와 알림 설정에 axe-core 검사 적용 | [컴포넌트 테스트](apps/web/components/maintenance/maintenance-view.test.tsx) |
-| 성능 관측 | 실제 브라우저 지표 수집과 최근 7일 p75 집계 | [수집 코드](apps/web/components/web-vitals-reporter.tsx), [집계 코드](apps/web/lib/data/repository.ts) |
+| 웹 단위 및 통합 | 2026-09-05 검토 개선 후 33개 파일, 138개 테스트 통과. 공통 패키지 8개 추가 통과 | [최신 개선 기록](docs/audits/2026-09-05-remediation.md) |
+| 실제 웹앱 E2E | Chromium 7개 통과. 업무 저장과 격리, 모바일 조작, 주요 화면 대비와 200% CSS 확대 검증 | [범위와 실행 방법](docs/E2E.md) |
+| 타입과 빌드 | 검토 개선 적용 후 5개 패키지 타입 검사와 Next.js 프로덕션 빌드 통과 | 타입, 테스트, 빌드, 예산 개별 실행, 2026-09-05 |
+| 성능 예산 | 10개 경로 모두 기존 예산 통과. 실측값 / 예산: 홈 177.3KiB / 185KiB, 메시지 168.7KiB / 170KiB | [전후 측정값](docs/OBSERVABILITY.md) |
+| 접근성 | 주요 6개 화면을 393px와 1440px에서 실제 axe-core로 검사. 색 대비 포함 | [컴포넌트 테스트](apps/web/components/maintenance/maintenance-view.test.tsx) |
+| 성능 관측 | 실제 브라우저 지표 수집과 최근 7일 p75 집계 | [수집 코드](apps/web/components/web-vitals-reporter.tsx), [집계 코드](apps/web/lib/data/vitals.ts) |
 | 모바일 프로토타입 | 기존 별도 시안 검증에서 Playwright 핵심 흐름 10개 통과. 이번 웹앱 E2E와는 별도 | `npm --prefix prototype run test:runtime` |
 | 정적 랜딩 | 기존 프로토타입 검증에서 Node 테스트 4개 통과 | `npm --prefix prototype run test:sites` |
-| 지속적 통합 | 웹앱과 프로토타입을 독립 작업으로 검증. 웹앱 E2E를 CI에 추가하고 Vercel은 기존 `pnpm verify` 유지 | [CI 워크플로](.github/workflows/ci.yml), [Vercel 설정](apps/web/vercel.json) |
+| 지속적 통합 | 웹앱과 프로토타입을 독립 작업으로 검증. 웹앱 E2E를 CI에 추가하고 Vercel은 `pnpm verify` 통과 후 `pnpm db:migrate` 실행 | [CI 워크플로](.github/workflows/ci.yml), [Vercel 설정](apps/web/vercel.json) |
 
 웹앱 검증은 다음 명령으로 재현합니다.
 
@@ -161,9 +163,11 @@ Node.js 22 이상과 pnpm 10.29.2를 사용합니다.
 ```bash
 corepack enable
 pnpm install
-pnpm db:reset
+pnpm db:setup
 pnpm dev
 ```
+
+`db:setup`은 기존 데이터를 보존하며 누락된 마이그레이션과 허용된 데모 시드를 적용합니다. 런타임 연결에서는 스키마를 변경하지 않으므로 새 환경에서 먼저 실행해야 합니다. 기존 로컬 데이터를 지우고 싶을 때만 `pnpm db:reset`을 사용합니다. `DATABASE_URL`이 설정되어 있으면 초기화 명령은 거부합니다.
 
 `http://localhost:3108`에서 Next.js 웹앱을 열 수 있습니다. 초기 모바일 디자인 시안과 포트폴리오 설명용 실험 패널은 `prototype`에 별도 보존했습니다.
 
@@ -191,6 +195,7 @@ pnpm dev
 
 ### 작업 과정과 품질 기록
 
+- [2026-09-05 검토 문제 개선과 검증](docs/audits/2026-09-05-remediation.md)
 - [AI 활용과 검증 원칙](docs/AI-WORKFLOW.md)
 - [데모 재현성 개선 사례](docs/case-studies/demo-reproducibility.md)
 - [전달 계획과 완료 조건](docs/DELIVERY-PLAN.md)

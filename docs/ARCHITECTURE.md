@@ -60,7 +60,7 @@ jipjigi/
 ```text
 Server Component
   ├── 사용자와 건물 권한 확인
-  ├── 계약 위험, 수납, 일정 병렬 조회
+  ├── 계약 위험, 수납, 일정과 전체 확인 건수를 하나의 SQL 스냅샷으로 조회
   └── ISO 문자열과 평범한 객체로 직렬화
         ↓
 Client Management Views
@@ -83,9 +83,17 @@ Client Management Views
 
 기본 런타임은 Node.js입니다. Edge 런타임은 지리적 지연 요구와 의존성 호환성이 확인된 경로에만 제한합니다.
 
+### 모듈과 저장 경계
+
+`lib/data`는 계약, 장부, 수리, 메시지, 홈 집계, 설정, 실험, 그로스와 성능 관측으로 분리했습니다. `repository.ts`는 기존 호출부 호환을 위한 export 진입점이며, 공유 DTO는 서버 코드가 없는 `types.ts`에 있습니다. 계약 타임라인은 SQL의 계약별 행 번호로 최근 8건만 반환하고 한 번 만든 Map으로 연결합니다. 메시지 화면의 수신자 표기도 Map으로 조회합니다.
+
+입금과 수리는 대상 행을 잠근 후 현재 상태를 검증합니다. 메시지는 계약 → 청구 → 메시지 순서로 필요한 행을 잠가 멱등 키와 빈도 제한을 같은 트랜잭션에서 판단합니다. 전달 웹훅은 메시지 행을, 수신 해제와 갱신 응답은 계약 행을 잠급니다. 업무 변경, 감사 로그, 제품 이벤트는 같은 DB 연결을 전달받아 커밋 또는 롤백됩니다. 공급자 외부 호출까지 원자적으로 만든 것은 아니며 현재는 샌드박스 저장만 수행합니다.
+
+`lib/db/client.ts`는 연결과 트랜잭션만 담당합니다. `migrations.ts`는 버전별 DDL, `seed.ts`는 명시적인 데모 준비, `connection-cache.ts`는 연결 공유와 실패 후 복구를 담당합니다. 테스트의 메모리 DB만 자동 준비하며, 실제 런타임은 사전 `db:setup` 또는 배포 `db:migrate`가 필요합니다.
+
 ### 개인 데모의 인증과 데이터 경계
 
-공개 데모 이메일은 비밀번호를 확인하는 입장 계정입니다. 해당 계정의 ID로 업무 세션을 발급하지 않습니다. 서버는 서명된 `jipjigi_demo_workspace` 쿠키를 확인하고, 없거나 만료됐다면 전용 임대인과 운영자 계정 및 샘플 데이터를 트랜잭션으로 생성합니다. `demo_workspaces` 테이블은 두 계정, 실험안, 생성과 만료 시각을 연결하며 현재 스키마 표식은 v4입니다.
+공개 데모 이메일은 비밀번호를 확인하는 입장 계정입니다. 해당 계정의 ID로 업무 세션을 발급하지 않습니다. 서버는 서명된 `jipjigi_demo_workspace` 쿠키를 확인하고, 없거나 만료됐다면 전용 임대인과 운영자 계정 및 샘플 데이터를 트랜잭션으로 생성합니다. `demo_workspaces` 테이블은 두 계정, 실험안, 생성과 만료 시각을 연결하며 작업공간 구조는 v4, 조회 인덱스를 추가한 현재 마이그레이션 버전은 v5입니다.
 
 - 로그인 세션과 작업공간 쿠키를 분리합니다. 로그아웃은 로그인 세션만 지우므로 반대 역할로 로그인해 같은 체험을 이어갑니다.
 - DAL이 DB의 현재 역할과 공간 만료를 재검증합니다. 이전 공유 계정 세션은 새로 로그인해야 하며 다른 방문자의 데이터를 읽지 못합니다.
@@ -109,7 +117,7 @@ Client Management Views
 
 ## 6. 스타일과 디자인 시스템
 
-현재 웹은 `globals.css`의 CSS 변수와 상태 클래스를 사용하고 `packages/ui`는 공통 `cx` 유틸리티를 제공합니다. Panda CSS 전환 시 semantic token을 `packages/ui`에 두고, React Native 도입 뒤에는 원시 색 이름이 아닌 `surface.canvas`, `text.primary`, `status.risk`, `action.primary` 같은 의미 토큰을 공유합니다.
+현재 웹은 `packages/ui/src/styles.css`의 색상, 글자 크기, 버튼과 배지 규칙을 가져오고 `globals.css`에는 화면별 배치를 둡니다. `packages/ui/components`는 Button, StatusBadge, Field, EmptyState를 제공합니다. Panda CSS 전환 시 semantic token을 `packages/ui`에 두고, React Native 도입 뒤에는 원시 색 이름이 아닌 `surface.canvas`, `text.primary`, `status.risk`, `action.primary` 같은 의미 토큰을 공유합니다.
 
 컴포넌트 계층은 다음처럼 나눕니다.
 

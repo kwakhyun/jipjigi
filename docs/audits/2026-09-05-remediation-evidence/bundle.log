@@ -1,0 +1,19 @@
+
+> @jipjigi/web@1.0.0 bundle:check /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/apps/web
+> node scripts/check-bundle-budget.mjs
+
+┌─────────┬─────────────────────────────────┬──────────┬────────────┬────────┐
+│ (index) │ route                           │ gzip KiB │ budget KiB │ status │
+├─────────┼─────────────────────────────────┼──────────┼────────────┼────────┤
+│ 0       │ '/'                             │ '152.6'  │ '170'      │ 'pass' │
+│ 1       │ '/login'                        │ '149.2'  │ '170'      │ 'pass' │
+│ 2       │ '/rental-management/[district]' │ '147.7'  │ '170'      │ 'pass' │
+│ 3       │ '/app'                          │ '177.3'  │ '185'      │ 'pass' │
+│ 4       │ '/app/contracts'                │ '166.7'  │ '170'      │ 'pass' │
+│ 5       │ '/app/growth'                   │ '150.8'  │ '170'      │ 'pass' │
+│ 6       │ '/app/ledger'                   │ '167.3'  │ '170'      │ 'pass' │
+│ 7       │ '/app/maintenance'              │ '167.4'  │ '170'      │ 'pass' │
+│ 8       │ '/app/messages'                 │ '168.7'  │ '170'      │ 'pass' │
+│ 9       │ '/app/settings'                 │ '162.3'  │ '170'      │ 'pass' │
+└─────────┴─────────────────────────────────┴──────────┴────────────┴────────┘
+All route bundle budgets passed.

@@ -1,0 +1,22 @@
+
+> jipjigi@1.0.0 test:e2e /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트
+> pnpm --filter @jipjigi/web test:e2e
+
+
+> @jipjigi/web@1.0.0 test:e2e /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/apps/web
+> playwright test
+
+[WebServer] (node:40535) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 1 worker
+
+(node:40875) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/owner-journey.spec.ts:9:5 › 계약에서 메시지를 접수하고 새로고침과 역할 전환 후에도 결과를 확인한다 (6.6s)
+[WebServer] {"level":"warn","event":"operation.rejected","timestamp":"2026-09-05T04:08:54.894Z","service":"jipjigi-web","requestId":"f9d81c75-ac26-42ea-822d-c0370158fb74","code":"NOT_FOUND","status":404}
+  ✓  2 [chromium] › e2e/owner-journey.spec.ts:41:5 › 서로 다른 브라우저의 계약, 변경 권한과 그로스 이벤트가 격리된다 (5.2s)
+  ✓  3 [chromium] › e2e/owner-journey.spec.ts:75:5 › 개인 데모를 초기화해 두 홈 구성을 각각 재현하고 기존 캐시를 교체한다 (2.7s)
+  ✓  4 [chromium] › e2e/owner-journey.spec.ts:93:5 › 모바일에서 실제 화면을 탐색하고 로그아웃 후 업무 API를 차단한다 (2.2s)
+
+  4 passed (26.3s)

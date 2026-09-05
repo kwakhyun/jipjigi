@@ -1,0 +1,39 @@
+
+> jipjigi@1.0.0 typecheck /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트
+> turbo typecheck
+
+• turbo 2.10.12
+
+   • Packages in scope: @jipjigi/analytics, @jipjigi/domain, @jipjigi/experiments, @jipjigi/ui, @jipjigi/web
+   • Running typecheck in 5 packages
+   • Remote caching disabled
+
+@jipjigi/domain:typecheck: cache miss, executing d78343717a6aa4c7
+@jipjigi/ui:typecheck: cache miss, executing 30b54678df8c42b5
+@jipjigi/analytics:typecheck: cache hit, replaying logs ac72f1dda06ab20f
+@jipjigi/experiments:typecheck: cache hit, replaying logs 7ab3d1bb2e26adbf
+@jipjigi/experiments:typecheck:
+@jipjigi/analytics:typecheck:
+@jipjigi/analytics:typecheck: > @jipjigi/analytics@1.0.0 typecheck /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/analytics
+@jipjigi/experiments:typecheck: > @jipjigi/experiments@1.0.0 typecheck /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/experiments
+@jipjigi/experiments:typecheck: > tsc --noEmit
+@jipjigi/analytics:typecheck: > tsc --noEmit
+@jipjigi/analytics:typecheck:
+@jipjigi/experiments:typecheck:
+@jipjigi/domain:typecheck:
+@jipjigi/domain:typecheck: > @jipjigi/domain@1.0.0 typecheck /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/domain
+@jipjigi/domain:typecheck: > tsc --noEmit
+@jipjigi/domain:typecheck:
+@jipjigi/ui:typecheck:
+@jipjigi/ui:typecheck: > @jipjigi/ui@1.0.0 typecheck /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/ui
+@jipjigi/ui:typecheck: > tsc --noEmit
+@jipjigi/ui:typecheck:
+@jipjigi/web:typecheck: cache miss, executing b5c2fd08a23e208f
+@jipjigi/web:typecheck:
+@jipjigi/web:typecheck: > @jipjigi/web@1.0.0 typecheck /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/apps/web
+@jipjigi/web:typecheck: > tsc --noEmit
+@jipjigi/web:typecheck:
+
+ Tasks:    5 successful, 5 total
+Cached:    2 cached, 5 total
+  Time:    21.137s

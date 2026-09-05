@@ -1,0 +1,22 @@
+Scope: 3 of 6 workspace projects
+packages/domain test$ vitest run --passWithNoTests
+packages/experiments test$ vitest run
+packages/analytics test$ vitest run
+packages/domain test:  RUN  v4.1.11 /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/domain
+packages/experiments test:  RUN  v4.1.11 /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/experiments
+packages/domain test:  Test Files  1 passed (1)
+packages/domain test:       Tests  2 passed (2)
+packages/domain test:    Start at  13:38:26
+packages/domain test:    Duration  339ms (transform 55ms, setup 0ms, import 135ms, tests 5ms, environment 0ms)
+packages/domain test: Done
+packages/analytics test:  RUN  v4.1.11 /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/packages/analytics
+packages/experiments test:  Test Files  1 passed (1)
+packages/experiments test:       Tests  2 passed (2)
+packages/experiments test:    Start at  13:38:26
+packages/experiments test:    Duration  221ms (transform 28ms, setup 0ms, import 42ms, tests 3ms, environment 0ms)
+packages/experiments test: Done
+packages/analytics test:  Test Files  1 passed (1)
+packages/analytics test:       Tests  4 passed (4)
+packages/analytics test:    Start at  13:38:26
+packages/analytics test:    Duration  458ms (transform 65ms, setup 0ms, import 151ms, tests 10ms, environment 0ms)
+packages/analytics test: Done

@@ -1,0 +1,16 @@
+
+> jipjigi@1.0.0 test:e2e /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트
+> pnpm --filter @jipjigi/web test:e2e
+
+
+> @jipjigi/web@1.0.0 test:e2e /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/apps/web
+> playwright test
+
+[WebServer] (node:7127) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+Error: Timed out waiting 90000ms from config.webServer.
+
+/Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/apps/web:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @jipjigi/web@1.0.0 test:e2e: `playwright test`
+Exit status 1
+ ELIFECYCLE  Command failed with exit code 1.

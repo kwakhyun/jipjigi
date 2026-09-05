@@ -102,6 +102,7 @@ export type DashboardSnapshot = {
     occupiedRate: number;
     openMaintenance: number;
   };
+  attention: { renewal: number; overdue: number; maintenance: number; total: number; affectedUnits: number };
   briefing: RiskBriefing;
   recentActivities: Array<{
     id: string;

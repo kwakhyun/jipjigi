@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { LedgerRow } from "@/lib/data/repository";
+import type { LedgerRow } from "@/lib/data/types";
 import { ownerQueryHarness } from "@/lib/query/test-harness";
 import { ownerKeys } from "@/lib/query/keys";
 
@@ -32,7 +32,7 @@ describe("실제 Query 캐시를 사용하는 운영 화면", () => {
     expect(screen.getByText("203호")).toBeTruthy();
     expect(screen.queryByText("204호")).toBeNull();
     expect(within(summary).getByText("0% 수납")).toBeTruthy();
-    expect(within(summary).getByText("1건 확인 필요")).toBeTruthy();
+    expect(within(summary).getByRole("button", { name: "미납 1건 보기" })).toBeTruthy();
     expect(submit).not.toHaveBeenCalled();
   });
 

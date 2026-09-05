@@ -1,0 +1,19 @@
+{
+  "viewport": {
+    "width": 393,
+    "height": 850
+  },
+  "route": "/app/ledger",
+  "bodyScrollWidth": 393,
+  "nextErrorOverlays": 0,
+  "browserErrors": [],
+  "mobileNavigationBounds": {
+    "x": 0,
+    "y": 786,
+    "width": 393,
+    "height": 64
+  },
+  "interaction": "미납 1건 보기 → 203호 금액, 상태와 작업 버튼 확인",
+  "database": "disposable local PGlite",
+  "externalMessageDelivery": false
+}

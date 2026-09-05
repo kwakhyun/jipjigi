@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { recordServerProductEvent } from "@/lib/analytics/server";
-import { writeAudit } from "@/lib/data/repository";
+import { writeAudit } from "@/lib/data/audit";
 import { getDatabase } from "@/lib/db/client";
 import { verifyWebhookSignature } from "@/lib/messaging/webhook";
 
@@ -19,32 +19,38 @@ export async function POST(request: Request) {
   }
   try {
     const event = RenewalResponseSchema.parse(JSON.parse(body));
-    const db = await getDatabase();
-    const dispatch = await db.prepare(
-      `SELECT id, user_id AS userId, entity_id AS leaseId
-       FROM message_dispatches
-       WHERE provider_message_id = ? AND entity_type = 'lease'`,
-    ).get<{ id: string; userId: string; leaseId: string }>(event.providerMessageId);
-    if (!dispatch) return NextResponse.json({ error: "갱신 요청 메시지를 찾을 수 없습니다." }, { status: 404 });
-    const inserted = await db.prepare(
-      `INSERT OR IGNORE INTO renewal_response_events (
-        id, dispatch_id, lease_id, response, provider_occurred_at, received_at
-      ) VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run(randomUUID(), dispatch.id, dispatch.leaseId, event.response, event.occurredAt, new Date().toISOString());
-    if (inserted.changes === 0) return NextResponse.json({ received: true, duplicate: true });
-    if (event.response === "agreed") await db.prepare("UPDATE leases SET renewal_status = 'agreed' WHERE id = ?").run(dispatch.leaseId);
-    await writeAudit(dispatch.userId, "renewal_response_recorded", "lease", dispatch.leaseId, {
-      messageId: dispatch.id,
-      response: event.response,
+    const database = await getDatabase();
+    return await database.transaction(async (db) => {
+      const dispatch = await db.prepare(
+        `SELECT id, user_id AS userId, entity_id AS leaseId
+         FROM message_dispatches
+         WHERE provider_message_id = ? AND entity_type = 'lease'`,
+      ).get<{ id: string; userId: string; leaseId: string }>(event.providerMessageId);
+      if (!dispatch) return NextResponse.json({ error: "갱신 요청 메시지를 찾을 수 없습니다." }, { status: 404 });
+      await db.prepare("SELECT id FROM leases WHERE id = ? FOR UPDATE").get(dispatch.leaseId);
+      const inserted = await db.prepare(
+        `INSERT OR IGNORE INTO renewal_response_events (
+          id, dispatch_id, lease_id, response, provider_occurred_at, received_at
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run(randomUUID(), dispatch.id, dispatch.leaseId, event.response, event.occurredAt, new Date().toISOString());
+      if (inserted.changes === 0) return NextResponse.json({ received: true, duplicate: true });
+      if (event.response === "agreed") await db.prepare("UPDATE leases SET renewal_status = 'agreed' WHERE id = ?").run(dispatch.leaseId);
+      await writeAudit(dispatch.userId, "renewal_response_recorded", "lease", dispatch.leaseId, {
+        messageId: dispatch.id,
+        response: event.response,
+      }, db);
+      await recordServerProductEvent("renewal_response_recorded", dispatch.userId, "/api/webhooks/renewal-responses", {
+        message_id: dispatch.id,
+        lease_id: dispatch.leaseId,
+        response: event.response,
+        channel: "sandbox_alimtalk",
+      }, db);
+      return NextResponse.json({ received: true, duplicate: false });
     });
-    await recordServerProductEvent("renewal_response_recorded", dispatch.userId, "/api/webhooks/renewal-responses", {
-      message_id: dispatch.id,
-      lease_id: dispatch.leaseId,
-      response: event.response,
-      channel: "sandbox_alimtalk",
-    });
-    return NextResponse.json({ received: true, duplicate: false });
-  } catch {
+  } catch (error) {
+    if (!(error instanceof z.ZodError) && !(error instanceof SyntaxError)) {
+      return NextResponse.json({ error: "웹훅을 저장하지 못했습니다. 다시 시도해 주세요." }, { status: 500 });
+    }
     return NextResponse.json({ error: "웹훅 본문이 유효하지 않습니다." }, { status: 400 });
   }
 }

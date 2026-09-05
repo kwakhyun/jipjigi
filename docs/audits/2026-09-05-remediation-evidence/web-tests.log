@@ -1,0 +1,8 @@
+
+ RUN  v4.1.11 /Users/kwakhyun/Documents/ChatGPT/자리톡 프론트엔드 포트폴리오 프로젝트/apps/web
+
+
+ Test Files  33 passed (33)
+      Tests  138 passed (138)
+   Start at  13:36:09
+   Duration  74.03s (transform 1.64s, setup 0ms, import 7.83s, tests 45.78s, environment 13.23s)

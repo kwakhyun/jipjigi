@@ -1,7 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "regions": ["sin1"],
-  "buildCommand": "pnpm --dir ../.. verify",
+  "regions": [
+    "sin1"
+  ],
+  "buildCommand": "pnpm --dir ../.. verify && pnpm db:migrate",
   "outputDirectory": ".next"
 }

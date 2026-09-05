@@ -29,10 +29,13 @@ const request = {
 
 describe("MaintenanceView", () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-08-30T01:00:00.000Z"));
     submitOperation.mockResolvedValue({ status: "scheduled", unchanged: false });
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     cleanup();
     vi.unstubAllGlobals();
     vi.clearAllMocks();

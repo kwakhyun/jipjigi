@@ -1,11 +1,12 @@
 "use client";
 
+import { Button, EmptyState, StatusBadge } from "@jipjigi/ui/components";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarIcon, CheckCircledIcon, InfoCircledIcon, PaperPlaneIcon } from "@radix-ui/react-icons";
 import { formatWon } from "@jipjigi/domain/format";
-import type { ContractRow, ContractTimelineEvent } from "@/lib/data/repository";
+import type { ContractRow, ContractTimelineEvent } from "@/lib/data/types";
 import { daysUntilDate, formatKoreanScheduleDateTime } from "@/lib/format/date";
 import { ownerResourceOptions } from "@/lib/query/options";
 import { useOwnerId } from "@/lib/query/owner-context";
@@ -49,6 +50,7 @@ export function ContractsView({ referenceTime }: { referenceTime: string }) {
             </article>
           ))}
         </div>
+        {visible.length === 0 ? <EmptyState title={query.trim() ? "검색 결과가 없어요." : "진행 중인 계약이 없어요."} description={query.trim() ? "다른 호실이나 임차인 이름으로 검색해 주세요." : "등록된 계약이 여기에 표시됩니다."} action={query.trim() ? <Button variant="secondary" onClick={() => setQuery("")}>검색 초기화</Button> : null} /> : null}
         <div className="privacy-note"><InfoCircledIcon /><span>계약 정보는 건물 소유 여부를 확인한 뒤 표시합니다. 행동 기록에는 이름과 연락처를 남기지 않습니다.</span></div>
       </section>
     </>
@@ -88,10 +90,10 @@ function RenewalStatus({ status }: { status: ContractRow["renewalStatus"] }) {
     ended: ["종료", "status-muted"],
   } as const;
   const [label, className] = map[status];
-  return <span className={`status-badge ${className}`}>{status === "none" ? <CheckCircledIcon /> : null}{label}</span>;
+  return <StatusBadge tone={status === "attention" ? "warning" : status === "requested" ? "neutral" : status === "ended" ? "muted" : "positive"} className={className}>{status === "none" ? <CheckCircledIcon /> : null}{label}</StatusBadge>;
 }
 
 function formatRange(start: string, end: string) {
-  const format = (value: string) => new Intl.DateTimeFormat("ko-KR", { year: "2-digit", month: "2-digit", day: "2-digit" }).format(new Date(value));
+  const format = (value: string) => new Intl.DateTimeFormat("ko-KR", { year: "2-digit", month: "2-digit", day: "2-digit", timeZone: "Asia/Seoul" }).format(new Date(value));
   return `${format(start)} ~ ${format(end)}`;
 }

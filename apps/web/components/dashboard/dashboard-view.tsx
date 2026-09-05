@@ -71,12 +71,12 @@ function DashboardContent({ initialBuildingId, buildings, userName }: DashboardP
   if (!value || isSessionError(briefing.error)) return <QueryFeedback queries={[briefing]} label="브리핑" />;
   const snapshot = value.data;
   const greetingName = /^[가-힣]{3}$/.test(userName) ? userName.slice(1) : userName;
-  const attentionItems = [snapshot.briefing.renewal, snapshot.briefing.overdue, snapshot.briefing.maintenance].filter((item) => item !== null);
-  const affectedUnitCount = new Set(attentionItems.map((item) => item.unitName)).size;
+  const attention = snapshot.attention;
   const renewalSection = snapshot.briefing.renewal ? (
     <RenewalPriority
       key="renewal"
       renewal={snapshot.briefing.renewal}
+      count={attention.renewal}
       onEvidence={() => track("risk_evidence_opened", {
         lease_id: snapshot.briefing.renewal?.leaseId ?? "",
         risk_type: "lease_expiring",
@@ -91,6 +91,7 @@ function DashboardContent({ initialBuildingId, buildings, userName }: DashboardP
       maintenance={snapshot.briefing.maintenance}
       hasMutedBriefings={snapshot.hasMutedBriefings}
       referenceTime={snapshot.generatedAt}
+      counts={attention}
     />
   );
   const briefings: ReactNode[] = value.experiment.variant === "risk-first" ? [renewalSection, agendaSection] : [agendaSection, renewalSection];
@@ -123,8 +124,8 @@ function DashboardContent({ initialBuildingId, buildings, userName }: DashboardP
           </div>
           <div className="hero-summary-copy">
             <span>오늘의 운영 브리핑</span>
-            <strong>확인이 필요한 일 {attentionItems.length}건</strong>
-            <p><CheckCircledIcon width={18} height={18} aria-hidden="true" /> {snapshot.hasMutedBriefings ? "설정에서 선택한 항목만 표시하고 있어요" : `나머지 ${Math.max(snapshot.building.occupiedUnits - affectedUnitCount, 0)}세대는 특이 사항 없이 운영 중이에요`}</p>
+            <strong>확인이 필요한 일 {attention.total}건</strong>
+            <p><CheckCircledIcon width={18} height={18} aria-hidden="true" /> {snapshot.hasMutedBriefings ? "설정에서 선택한 항목만 표시하고 있어요" : `확인 대상 ${attention.affectedUnits}세대, 입주 ${snapshot.building.occupiedUnits}세대`}</p>
           </div>
         </div>
       </section>
@@ -161,13 +162,14 @@ function Metric({ label, value, detail, tone }: { label: string; value: string; 
   return <article className={`metric-item metric-${tone}`}><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>;
 }
 
-function RenewalPriority({ renewal, onEvidence }: { renewal: NonNullable<DashboardSnapshot["briefing"]["renewal"]>; onEvidence: () => void }) {
+function RenewalPriority({ renewal, count, onEvidence }: { count: number; renewal: NonNullable<DashboardSnapshot["briefing"]["renewal"]>; onEvidence: () => void }) {
   return (
     <section className="surface-card priority-card" aria-labelledby="priority-heading">
       <div className="section-heading-row">
         <div><span className="section-kicker kicker-coral">가장 먼저 확인하세요</span><h2 id="priority-heading">계약 만료가 가까워요</h2></div>
         <span className="risk-pill">{renewal.daysLeft < 0 ? `만료 ${Math.abs(renewal.daysLeft)}일 지남` : renewal.daysLeft === 0 ? "오늘 만료" : `D-${renewal.daysLeft}`}</span>
       </div>
+      <Link className="briefing-list-link" href="/app/contracts">갱신 확인 대상 {count}건 보기</Link>
       <div className="priority-content">
         <Image className="priority-asset" src="/assets/jipjigi/priority-renewal-icon.png" width={104} height={104} alt="계약 갱신 일정 알림" />
         <div className="priority-copy">
@@ -191,10 +193,10 @@ function RenewalPriority({ renewal, onEvidence }: { renewal: NonNullable<Dashboa
   );
 }
 
-function Agenda({ overdue, maintenance, hasMutedBriefings, referenceTime }: { overdue: DashboardSnapshot["briefing"]["overdue"]; maintenance: DashboardSnapshot["briefing"]["maintenance"]; hasMutedBriefings: boolean; referenceTime: string }) {
+function Agenda({ overdue, maintenance, hasMutedBriefings, referenceTime, counts }: { counts: DashboardSnapshot["attention"]; overdue: DashboardSnapshot["briefing"]["overdue"]; maintenance: DashboardSnapshot["briefing"]["maintenance"]; hasMutedBriefings: boolean; referenceTime: string }) {
   return (
     <section className="surface-card agenda-card" aria-labelledby="agenda-heading">
-      <div className="section-heading-row"><div><span className="section-kicker">오늘 끝낼 일</span><h2 id="agenda-heading">운영 일정</h2></div><span className="count-badge">{[overdue, maintenance].filter(Boolean).length}</span></div>
+      <div className="section-heading-row"><div><span className="section-kicker">오늘 끝낼 일</span><h2 id="agenda-heading">운영 일정</h2></div><span className="count-badge">{counts.overdue + counts.maintenance}</span></div>
       <div className="agenda-list">
         {overdue ? (
           <article className="agenda-item">
@@ -211,6 +213,7 @@ function Agenda({ overdue, maintenance, hasMutedBriefings, referenceTime }: { ov
           </article>
         ) : <div className="empty-inline"><CheckCircledIcon /> {hasMutedBriefings ? "표시할 수리 일정이 없어요. 수리 목록과 알림 설정을 확인해 주세요." : "처리 중인 수리 요청이 없어요."}</div>}
       </div>
+      <div className="briefing-links"><Link href="/app/ledger">미납 {counts.overdue}건 보기</Link><Link href="/app/maintenance">수리 {counts.maintenance}건 보기</Link></div>
       <div className="guardrail-line"><ClockIcon /><span>메시지 센터에서 문구와 현재 발송 제한 시간을 확인한 뒤 접수해요.</span></div>
     </section>
   );

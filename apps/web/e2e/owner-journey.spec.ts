@@ -1,3 +1,4 @@
+import axe from "axe-core";
 import { expect, test, type Page } from "@playwright/test";
 
 async function login(page: Page, role: "owner" | "operator" = "owner") {
@@ -115,3 +116,73 @@ test("모바일에서 실제 화면을 탐색하고 로그아웃 후 업무 API�
   await expect(page).toHaveURL(/\/login$/);
   expect((await page.request.get("/api/workspace/contracts")).status()).toBe(401);
 });
+
+
+test("모바일 장부, 검색 초기화와 일정 변경을 실제 화면에서 처리한다", async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 850 });
+  await login(page);
+  await page.goto("/app/ledger");
+  await page.getByRole("button", { name: "미납 1건 보기", exact: true }).click();
+  const row = page.locator(".ledger-table tbody tr");
+  await expect(row).toHaveCount(1);
+  const payment = row.getByRole("button", { name: "입금 확인", exact: true });
+  await expect(payment).toBeInViewport();
+  const box = await payment.boundingBox();
+  expect(box!.x + box!.width).toBeLessThanOrEqual(393);
+  await expect(page.locator("body")).toHaveJSProperty("scrollWidth", 393);
+  const ledger = (await (await page.request.get("/api/workspace/ledger")).json()).data;
+  const paid = ledger.find((charge: { status: string }) => charge.status === "paid");
+  const invalid = await page.request.post("/api/operations", { data: { type: "send_overdue_notice", chargeId: paid.id } });
+  expect(invalid.status()).toBe(409);
+
+  await page.goto("/app/contracts");
+  await page.getByRole("searchbox", { name: "호실 또는 임차인 검색" }).fill("존재하지않는이름");
+  await expect(page.getByText("검색 결과가 없어요.", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "검색 초기화" }).click();
+  await expect(page.locator(".contract-row")).toHaveCount(25);
+
+  await page.goto("/app/maintenance");
+  await page.getByRole("button", { name: "방문 일정 정하기", exact: true }).click();
+  const tomorrow = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date(Date.now() + 86_400_000));
+  await page.getByLabel("방문 날짜와 시간").fill(`${tomorrow}T14:00`);
+  await page.getByRole("button", { name: "방문 일정 저장", exact: true }).click();
+  await page.getByRole("button", { name: "방문 일정 변경", exact: true }).click();
+  await page.getByLabel("방문 날짜와 시간").fill(`${tomorrow}T16:00`);
+  await page.getByRole("button", { name: "방문 일정 저장", exact: true }).click();
+  await expect(page.getByRole("button", { name: "방문 일정 변경", exact: true })).toBeVisible();
+  await page.reload();
+  const requests = (await (await page.request.get("/api/workspace/maintenance")).json()).data;
+  expect(requests[0].scheduledAt).toBe(`${tomorrow}T07:00:00.000Z`);
+});
+
+for (const width of [393, 1440]) {
+  test(`실제 Chromium ${width}px에서 핵심 화면의 색 대비와 접근성을 검사한다`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width, height: 1000 });
+    await login(page);
+    for (const path of ["/app", "/app/ledger", "/app/contracts", "/app/maintenance", "/app/messages", "/app/settings"]) {
+      await page.goto(path);
+      await expect(page.locator("#main-content h1")).toBeVisible();
+      await expect(page.locator(".route-state")).toHaveCount(0);
+      await page.addScriptTag({ content: axe.source });
+      const violations = await page.evaluate(async () => {
+        const engine = (window as unknown as { axe: typeof axe }).axe;
+        const result = await engine.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } });
+        return result.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map(({ target, failureSummary }) => ({ target, failureSummary })) }));
+      });
+      expect.soft(violations, `${path} at ${width}px`).toEqual([]);
+      expect.soft(await page.locator("body").evaluate((body) => body.scrollWidth), path).toBeLessThanOrEqual(width);
+    }
+    if (width === 1440) {
+      await page.goto("/app/ledger");
+      await page.evaluate(() => { document.documentElement.style.zoom = "2"; });
+      await page.getByRole("button", { name: "미납 1건 보기", exact: true }).click();
+      const payment = page.getByRole("button", { name: "입금 확인", exact: true });
+      await payment.scrollIntoViewIfNeeded();
+      await expect(payment).toBeVisible();
+      expect(await page.locator("body").evaluate((body) => body.scrollWidth)).toBeLessThanOrEqual(1440);
+      await payment.click();
+      await expect(page.getByText("203호의 입금을 확인하고 납부 완료로 반영했어요.", { exact: true })).toBeVisible();
+    }
+  });
+}

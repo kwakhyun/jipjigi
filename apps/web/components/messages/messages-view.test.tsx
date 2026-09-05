@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ContractRow, LedgerRow, MessageRow } from "@/lib/data/repository";
+import type { ContractRow, LedgerRow, MessageRow } from "@/lib/data/types";
 const { submit } = vi.hoisted(() => ({ submit: vi.fn() }));
 vi.mock("@/lib/operations/client", () => ({ submitOperation: submit }));
 import { MessagesView } from "./messages-view";
@@ -14,6 +14,13 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 beforeEach(() => { submit.mockReset(); });
 
 describe("발송 전 공통 미리보기", () => {
+  it("예약 시각과 차단 이유를 본문으로 구분해 안내한다", () => {
+    const message: MessageRow = { id: "scheduled", entityType: "lease", entityId: "lease-501", channel: "sandbox_alimtalk", templateKey: "renewal_v1", status: "scheduled", guardrailReason: "quiet_hours", scheduledFor: "2026-09-01T00:15:00Z", createdAt: "2026-08-31T13:30:00Z", updatedAt: "2026-08-31T13:30:00Z", deliveredAt: null, retryCount: 0 };
+    const { container } = render(<MessagesView />, { wrapper: harness([message, { ...message, id: "blocked", status: "blocked", guardrailReason: "missing_consent", scheduledFor: null }]).Wrapper });
+    expect(container.querySelector('time[datetime="2026-09-01T00:15:00Z"]')?.closest("div")?.textContent).toContain("예약");
+    expect(screen.getByText(/임차인의 수신 동의가 없어 차단했어요/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "발송 시간 설정" }).getAttribute("href")).toBe("/app/settings");
+  });
   it("진입 대상의 문구를 먼저 표시하고 명시적인 접수 때만 서버를 호출한다", async () => {
     const query = harness();
     submit.mockImplementation(async () => {
@@ -29,7 +36,7 @@ describe("발송 전 공통 미리보기", () => {
     fireEvent.click(screen.getByRole("button", { name: "발송 조건 확인 후 접수" }));
     await waitFor(() => expect(submit).toHaveBeenCalledWith({ type: "start_renewal", leaseId: "lease-501" }));
     await screen.findByText("테스트 메시지를 접수했어요.");
-    expect(screen.getByText("전달")).toBeTruthy();
+    expect(screen.getAllByText("전달")).toHaveLength(2);
     expect(screen.getByText("선택한 대상에 보낼 메시지가 없어요.")).toBeTruthy();
   });
 
@@ -53,6 +60,6 @@ describe("발송 전 공통 미리보기", () => {
     vi.spyOn(dateTimePrototype, "format", "get").mockReturnValue(() => "8월 31일 AM 10:00");
     const messages: MessageRow[] = [{ id: "message-1", entityType: "lease", entityId: "lease-501", channel: "sandbox_alimtalk", templateKey: "renewal_v1", status: "delivered", guardrailReason: null, scheduledFor: null, createdAt: "2026-08-31T01:00:00Z", updatedAt: "2026-08-31T01:00:01Z", deliveredAt: "2026-08-31T01:00:01Z", retryCount: 0 }];
     render(<MessagesView />, { wrapper: harness(messages).Wrapper });
-    expect(screen.getByText("8월 31일 오전 10:00")).toBeTruthy();
+    expect(screen.getAllByText("8월 31일 오전 10:00")).toHaveLength(2);
   });
 });

@@ -1,12 +1,13 @@
 "use client";
 
+import { Button, EmptyState, StatusBadge } from "@jipjigi/ui/components";
 import Link from "next/link";
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircledIcon, ExclamationTriangleIcon, PaperPlaneIcon } from "@radix-ui/react-icons";
 import { formatWon } from "@jipjigi/domain/format";
-import type { LedgerRow } from "@/lib/data/repository";
+import type { LedgerRow } from "@/lib/data/types";
 import { useTransientMessage } from "@/lib/hooks/use-transient-message";
 import { ownerResourceOptions } from "@/lib/query/options";
 import { useOwnerId } from "@/lib/query/owner-context";
@@ -55,12 +56,12 @@ export function LedgerView() {
   return (
     <>
       <QueryFeedback queries={[ledger]} label="임대 장부" />
-      <section className="summary-grid" aria-label="선택한 청구월 임대료 요약">
+      <section className="summary-grid ledger-summary" aria-label="선택한 청구월 임대료 요약">
         <article className="summary-card"><span>청구액</span><strong>{formatWon(totals.expected)}</strong><small>{periodRows.length}건 청구</small></article>
         <article className="summary-card summary-positive"><span>수납 완료</span><strong>{formatWon(totals.collected)}</strong><small>{totals.expected ? Math.round((totals.collected / totals.expected) * 100) : 0}% 수납</small></article>
-        <article className="summary-card summary-warning"><span>미납</span><strong>{formatWon(totals.overdue)}</strong><small>{totals.overdueCount}건 확인 필요</small></article>
+        <article className="summary-card summary-warning"><span>미납</span><strong>{formatWon(totals.overdue)}</strong><Button variant="quiet" size="small" onClick={() => { setFilter("overdue"); document.getElementById("ledger-list-title")?.scrollIntoView({ block: "start" }); }}>미납 {totals.overdueCount}건 보기</Button></article>
       </section>
-      <section className="surface-card data-section" aria-labelledby="ledger-list-title">
+      <section className="surface-card data-section ledger-section" aria-labelledby="ledger-list-title">
         <div className="data-section-header">
           <div><h2 id="ledger-list-title">{activePeriod ? `${activePeriod.slice(0, 4)}년 ${Number(activePeriod.slice(5))}월 임대료` : "임대료 청구 내역"}</h2><p>입금 상태를 확인하고 필요한 조치를 바로 실행하세요.</p></div>
           {periods.length > 1 ? <label className="ledger-period-select"><span className="sr-only">청구월 선택</span><select aria-label="청구월 선택" value={activePeriod} onChange={(event) => setSelectedPeriod(event.target.value)}>{periods.map((period) => <option key={period} value={period}>{period}</option>)}</select></label> : null}
@@ -72,22 +73,22 @@ export function LedgerView() {
             ))}
           </div>
         </div>
-        <div className="table-scroll">
-          <table className="data-table">
+        <div className="table-scroll ledger-scroll">
+          <table className="data-table ledger-table">
             <thead><tr><th>건물·호실</th><th>임차인</th><th>납부 기한</th><th>금액</th><th>상태</th><th><span className="sr-only">작업</span></th></tr></thead>
             <tbody>
               {visible.map((row) => (
                 <tr key={row.id}>
                   <td><strong>{row.unitName}</strong><small>{row.buildingName}</small></td>
-                  <td>{row.tenantName}</td>
-                  <td>{formatDate(row.dueDate)}</td>
-                  <td className="money-cell">{formatWon(row.amount)}</td>
-                  <td><Status status={row.status} /></td>
+                  <td data-label="임차인">{row.tenantName}</td>
+                  <td data-label="납부 기한">{formatDate(row.dueDate)}</td>
+                  <td data-label="금액" className="money-cell">{formatWon(row.amount)}</td>
+                  <td data-label="상태"><Status status={row.status} /></td>
                   <td className="action-cell">
                     {row.status === "overdue" ? (
                       <div className="row-actions">
                         <Link className="button button-quiet button-small" href={`/app/messages?target=${encodeURIComponent(row.id)}`}><PaperPlaneIcon /> 미납 안내 확인</Link>
-                        <button className="button button-secondary button-small" type="button" disabled={isPending} onClick={() => run(row)}>{pendingId === row.id && isPending ? "확인 중…" : "입금 확인"}</button>
+                        <Button variant="secondary" size="small" disabled={isPending || ledger.isError} onClick={() => run(row)}>{pendingId === row.id && isPending ? "확인 중…" : "입금 확인"}</Button>
                       </div>
                     ) : <span className="muted-caption">{row.paidAt ? formatDate(row.paidAt) : "-"}</span>}
                   </td>
@@ -96,7 +97,7 @@ export function LedgerView() {
             </tbody>
           </table>
         </div>
-        {visible.length === 0 ? <div className="empty-state"><CheckCircledIcon /><strong>이 상태의 항목이 없어요.</strong></div> : null}
+        {visible.length === 0 ? <EmptyState title="이 상태의 항목이 없어요." icon={<CheckCircledIcon />} /> : null}
       </section>
       {toast ? <div className="toast" role="status">{toast}</div> : null}
     </>
@@ -105,7 +106,7 @@ export function LedgerView() {
 
 function Status({ status }: { status: LedgerRow["status"] }) {
   const label = status === "paid" ? "납부 완료" : status === "overdue" ? "미납" : "납부 예정";
-  return <span className={`status-badge status-${status}`}>{status === "paid" ? <CheckCircledIcon /> : status === "overdue" ? <ExclamationTriangleIcon /> : null}{label}</span>;
+  return <StatusBadge tone={status === "paid" ? "positive" : status === "overdue" ? "warning" : "neutral"}>{status === "paid" ? <CheckCircledIcon /> : status === "overdue" ? <ExclamationTriangleIcon /> : null}{label}</StatusBadge>;
 }
 
 function formatDate(value: string) {
