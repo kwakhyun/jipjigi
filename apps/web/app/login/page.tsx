@@ -35,7 +35,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       </section>
       <section className="login-panel" aria-labelledby="login-title">
         <div className="login-card">
-          {demoEnabled ? <span className="demo-badge">포트폴리오 데모 계정</span> : null}
+          {demoEnabled ? <span className="demo-badge">데모 계정</span> : null}
           <h2 id="login-title">다시 만나서 반가워요</h2>
           <p>{demoEnabled ? "확인할 데모를 선택해 서로 다른 업무 화면을 둘러보세요." : "계정 정보로 로그인해 주세요."}</p>
           {session ? <section className="login-current-session" aria-label="현재 로그인 상태">

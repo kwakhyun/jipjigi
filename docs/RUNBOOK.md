@@ -62,7 +62,7 @@ HTTPS 주소로 빌드한 프로덕션 이미지에서만 HSTS 헤더를 활성�
 
 | 서비스 | 확인된 플랜 | 비용 제한 |
 | --- | --- | --- |
-| Vercel | Hobby, 활성 상태 | 개인 비상업 포트폴리오용 무료 플랜. 한도 초과 시 기능 제한 가능 |
+| Vercel | Hobby, 활성 상태 | 개인 비상업 프로젝트용 무료 플랜. 한도 초과 시 기능 제한 가능 |
 | Neon `jipjigi-postgres` | Free (`free_v3`) | 프로젝트당 100 CU-hours, 0.5 GB. 무료 초과 사용료 없음 |
 | Upstash `jipjigi-rate-limit` | Free (`free`) | 월 500,000 명령. `autoUpgrade=false`, `prodPack=false` |
 

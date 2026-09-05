@@ -1,4 +1,4 @@
-# 집지기 | 임대 운영 그로스 포트폴리오
+# 집지기 | 임대 관리 서비스
 
 집지기는 1~20개 호실을 직접 관리하는 임대인이 오늘 처리할 일을 놓치지 않도록 돕는 모바일 중심 임대 운영 서비스입니다. 계약 만료, 월세 수납, 민원 대응을 한곳에 모으고, 기능을 출시할 때 행동 로그와 A/B 테스트까지 함께 설계했습니다.
 
@@ -7,14 +7,14 @@
 | 구분 | 내용 |
 | --- | --- |
 | 진행 시점 | 2026년 8월 |
-| 프로젝트 형태 | 공개 포트폴리오 데모 |
+| 프로젝트 형태 | 공개 데모 |
 | 수행 범위 | 제품 문제 정의와 요구사항 우선순위, UI/UX 방향 결정, React와 Next.js 구현, 테스트와 배포 검증 |
 | 현재 상태 | Vercel 공개 배포, 알림톡은 샌드박스 공급자를 사용하고 금융 정보는 데모 데이터로 제공 |
 | AI 활용 | 시안 탐색과 구현 보조, 반복 검토에 활용하고 제품 정책과 최종 검증은 별도 기준으로 관리 |
 
 **바로 확인하기:** [라이브 데모](https://jipjigi-khyun.vercel.app), [GitHub Actions](https://github.com/kwakhyun/jipjigi/actions/workflows/ci.yml), [현재 및 목표 아키텍처](docs/ARCHITECTURE.md)
 
-제출한 포트폴리오 PDF의 화면과 검증 수치는 **2026-08-31 기준**입니다. 저장소에는 이후 **2026-09-05 오류 수정과 접근성 개선**을 반영했습니다. PDF의 기술 구성, 데모 체험 순서와 구현 범위는 유지하며, 테스트 수와 일부 화면 표현의 차이는 [제출본과 현재 버전의 정합성 확인](docs/SUBMISSION-COMPATIBILITY.md)에 정리했습니다.
+버전별 변경 내용과 검증 수치는 [변경 기록](docs/VERSION-HISTORY.md)에 정리했습니다.
 
 ## 데모 계정
 
@@ -82,7 +82,7 @@
 
 **구현 근거:** [발송 가드레일](apps/web/lib/messaging/guardrails.ts), [메시지 서비스](apps/web/lib/messaging/service.ts), [전달 웹훅](apps/web/app/api/webhooks/messages/route.ts), [갱신 응답 웹훅](apps/web/app/api/webhooks/renewal-responses/route.ts), [CRM 통합 테스트](apps/web/app/api/webhooks/messages/route.test.ts)
 
-### 평가자가 같은 문제 상황을 반복해서 확인할 수 있게 했습니다
+### 방문자가 같은 문제 상황을 반복해서 확인할 수 있게 했습니다
 
 공유 데모에서는 앞선 방문자가 완료한 작업이 다음 방문자의 화면에서도 사라지고, 고정된 계약 날짜는 시간이 지나면 핵심 흐름을 바꿉니다. 공개 계정과 실제 작업 계정을 분리하고, 한국 날짜를 기준으로 새 시나리오를 만드는 방식으로 수정했습니다. 초기화는 본인 공간에만 적용하고 새 ID를 발급해 Query 캐시와 실험 기록이 이전 체험에 섞이지 않게 했습니다.
 
@@ -134,7 +134,7 @@ pnpm test:e2e:setup
 pnpm test:e2e
 ```
 
-`pnpm verify`가 프로덕션 빌드를 만듭니다. E2E는 이를 로컬 임시 DB와 실행하며 운영 URL을 대상으로 실행하지 않습니다. GitHub Actions의 E2E 성공을 Vercel 배포가 자동으로 기다리도록 설정한 것은 아닙니다. 제출할 버전의 CI 상태와 배포 커밋을 함께 확인해야 합니다.
+`pnpm verify`가 프로덕션 빌드를 만듭니다. E2E는 이를 로컬 임시 DB와 실행하며 운영 URL을 대상으로 실행하지 않습니다. GitHub Actions의 E2E 성공을 Vercel 배포가 자동으로 기다리도록 설정한 것은 아닙니다. 공개 버전의 CI 상태와 배포 커밋을 함께 확인해야 합니다.
 
 프로토타입 검증은 의존성과 Chromium을 준비한 뒤 별도로 실행합니다.
 
@@ -148,7 +148,7 @@ npm --prefix prototype run test:sites
 
 ## 운영 전환 경계
 
-현재 결과물은 프로덕션 구조와 배포 흐름을 검증한 공개 포트폴리오 데모입니다. Vercel에서는 Neon Postgres가 영속 데이터를 보관하고 Upstash Redis가 인스턴스 간 요청 제한을 공유합니다. 로컬 개발은 같은 PostgreSQL 문법을 실행하는 PGlite를 사용합니다. 외부 알림톡은 실제 공급자 계약 대신 샌드박스를 사용하고, 금융 정보는 데모 데이터로 제공합니다.
+현재 결과물은 프로덕션 구조와 배포 흐름을 검증한 공개 데모입니다. Vercel에서는 Neon Postgres가 영속 데이터를 보관하고 Upstash Redis가 인스턴스 간 요청 제한을 공유합니다. 로컬 개발은 같은 PostgreSQL 문법을 실행하는 PGlite를 사용합니다. 외부 알림톡은 실제 공급자 계약 대신 샌드박스를 사용하고, 금융 정보는 데모 데이터로 제공합니다.
 
 실서비스로 전환하려면 재시도와 복구가 가능한 이벤트 큐와 예약 발송 워커, 실제 인증 체계 구축과 CRM 공급자 연동, 중앙화된 비밀정보 관리와 장애 알림이 추가로 필요합니다. 구현된 범위와 후속 작업은 [프로덕션 준비 상태](docs/PRODUCTION-READINESS.md)에서 구분해 확인할 수 있습니다.
 
@@ -169,7 +169,7 @@ pnpm dev
 
 `db:setup`은 기존 데이터를 보존하며 누락된 마이그레이션과 허용된 데모 시드를 적용합니다. 런타임 연결에서는 스키마를 변경하지 않으므로 새 환경에서 먼저 실행해야 합니다. 기존 로컬 데이터를 지우고 싶을 때만 `pnpm db:reset`을 사용합니다. `DATABASE_URL`이 설정되어 있으면 초기화 명령은 거부합니다.
 
-`http://localhost:3108`에서 Next.js 웹앱을 열 수 있습니다. 초기 모바일 디자인 시안과 포트폴리오 설명용 실험 패널은 `prototype`에 별도 보존했습니다.
+`http://localhost:3108`에서 Next.js 웹앱을 열 수 있습니다. 초기 모바일 디자인 시안과 실험 비교 패널은 `prototype`에 별도 보존했습니다.
 
 <details>
 <summary><strong>상세 문서와 저장소 구조</strong></summary>
@@ -179,7 +179,7 @@ pnpm dev
 - [제품 요구사항](docs/PRD.md)
 - [실험 설계](docs/EXPERIMENTS.md)
 - [이벤트 택소노미](docs/EVENTS.md)
-- [채용 요건 대응표](docs/REQUIREMENT-MATRIX.md)
+- [기능 구현 현황](docs/REQUIREMENT-MATRIX.md)
 - [실제 사용자 검증 계획](docs/USER-VALIDATION.md)
 
 ### 엔지니어링과 운영

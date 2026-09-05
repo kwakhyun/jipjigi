@@ -6,7 +6,7 @@
 
 2026-08-31 09:39 KST, 공통 시간 포맷을 수정한 `apps/web`의 실제 프로덕션 빌드에서 핵심 여정 **4개가 모두 통과했습니다**. 마지막 실행은 10.3초였으며 재시도하지 않았습니다. Node.js 22.21.0, Playwright 1.61.1과 Chromium에서 데스크톱 1440 × 1000, 모바일 393 × 850 뷰포트를 사용했습니다. 실제 모바일 기기나 WebKit, Firefox 검증은 아닙니다.
 
-잠금 파일 갱신, 타입 검사, 웹 단위 및 통합 테스트 126개, 공통 패키지 테스트 8개, 프로덕션 빌드와 10개 경로의 번들 예산도 통과했습니다. 이 문서는 로컬 실행 기록입니다. 원격 CI와 공개 배포 상태는 제출할 커밋의 GitHub Actions 결과와 Vercel 배포 SHA를 대조해 확인합니다.
+잠금 파일 갱신, 타입 검사, 웹 단위 및 통합 테스트 126개, 공통 패키지 테스트 8개, 프로덕션 빌드와 10개 경로의 번들 예산도 통과했습니다. 이 문서는 로컬 실행 기록입니다. 원격 CI와 공개 배포 상태는 검증 대상 커밋의 GitHub Actions 결과와 Vercel 배포 SHA를 대조해 확인합니다.
 
 최초 CI에서 메시지 새로고침 후 서버의 `AM` 표기와 브라우저의 `오전` 표기가 달라 React 418 오류가 발생했습니다. 공통 한국어 시간 포맷을 적용하고 동일한 실패 조건을 컴포넌트 테스트로 추가했습니다. [원인과 수정 기록](case-studies/demo-reproducibility.md)을 확인하세요.
 
@@ -56,7 +56,7 @@ GitHub Actions의 `production-app` 작업에서 빌드와 번들 검사 다음�
 
 실패하면 `apps/web/playwright-report`와 `apps/web/test-results`에 보고서, 화면과 트레이스를 남깁니다. CI는 이를 `web-e2e-failure` 아티팩트로 3일 보관합니다. 테스트에는 실제 개인정보가 없지만 아티팩트 역시 외부 고객 데이터로 실행하지 않습니다.
 
-Vercel의 빌드는 `pnpm verify` 성공 후 `pnpm db:migrate`를 실행합니다. **GitHub E2E 성공을 기다리는 자동 승격 규칙은 별도로 설정하지 않았습니다.** 제출 전 해당 커밋의 CI 통과와 Vercel 배포 SHA를 함께 확인해야 합니다. GitHub Actions 설정 추가만으로 현재 운영 배포가 검증됐다고 간주하지 않습니다.
+Vercel의 빌드는 `pnpm verify` 성공 후 `pnpm db:migrate`를 실행합니다. **GitHub E2E 성공을 기다리는 자동 승격 규칙은 별도로 설정하지 않았습니다.** 공개 버전 검증 시 해당 커밋의 CI 통과와 Vercel 배포 SHA를 함께 확인해야 합니다. GitHub Actions 설정 추가만으로 현재 운영 배포가 검증됐다고 간주하지 않습니다.
 
 구현: [Playwright 설정](../apps/web/playwright.config.ts), [격리된 서버 실행기](../apps/web/scripts/start-e2e-server.mjs), [핵심 여정](../apps/web/e2e/owner-journey.spec.ts), [CI](../.github/workflows/ci.yml).
 

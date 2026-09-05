@@ -21,6 +21,6 @@ apps/web/playwright-report/
 *.tsbuildinfo
 .DS_Store
 
-# Local-only portfolio PDF sources and generated artifacts
+# Local-only document sources and generated artifacts
 /portfolio/
 /output/pdf/

@@ -572,7 +572,7 @@ function AllScreen({
       </div>
       {showExperimentTools ? <div className="experiment-panel">
         <div className="experiment-heading">
-          <span><GearIcon width={18} height={18} /> 포트폴리오 실험 모드</span>
+          <span><GearIcon width={18} height={18} /> 데모 실험 모드</span>
           <small>노출 이벤트 {events.filter((event) => event.name === "experiment_exposure").length}회</small>
         </div>
         <p>홈 브리핑의 정보 순서가 행동 완료율에 미치는 영향을 확인합니다.</p>

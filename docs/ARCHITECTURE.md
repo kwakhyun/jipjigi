@@ -9,7 +9,7 @@
 | 현재 구현 | `apps/web`, `prototype`, `packages/domain`, `analytics`, `experiments`, `ui`, GitHub Actions와 Vercel 배포 |
 | 후속 설계 | React Native 앱, `api-client`, `native-ui`, Panda CSS 전환, 실제 CRM 공급자와 AWS Elastic Beanstalk 운영 |
 
-아래 구조와 운영 항목에는 현재 코드와 후속 목표가 함께 포함됩니다. 구현 여부가 중요한 항목은 [프로덕션 준비 상태](PRODUCTION-READINESS.md)와 [채용 요건 대응표](REQUIREMENT-MATRIX.md)에서 다시 구분합니다.
+아래 구조와 운영 항목에는 현재 코드와 후속 목표가 함께 포함됩니다. 구현 여부가 중요한 항목은 [프로덕션 준비 상태](PRODUCTION-READINESS.md)와 [기능 구현 현황](REQUIREMENT-MATRIX.md)에서 다시 구분합니다.
 
 ## 2. 목표 저장소 구조와 후속 경계
 
