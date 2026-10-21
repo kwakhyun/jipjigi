@@ -108,7 +108,7 @@ test('HTTP integration: outage -> one assigned incident -> recovery -> new recur
     api: githubClient({ token: 'test-only-token', repository: 'owner/repo', fetchImpl }),
     repository: 'owner/repo', assignee: 'owner', runId: '123',
   };
-  const run = async () => syncHealthIssue(await checkHealth({ fetchImpl, delayMs: 0 }), context);
+  const run = async () => (await syncHealthIssue(await checkHealth({ fetchImpl, delayMs: 0 }), context)).state;
   assert.equal(await run(), 'opened');
   assert.equal(await run(), 'ongoing');
   assert.equal(posts, 1);
@@ -128,7 +128,7 @@ test('HTTP integration: outage -> one assigned incident -> recovery -> new recur
 
 test('paginates issues and never closes unrelated issues or pull requests', async () => {
   const calls = [];
-  const unrelated = { number: 1, title: INCIDENT_TITLE, body: INCIDENT_MARKER, user: { login: 'someone-else' } };
+  const unrelated = { number: 1, state: 'open', title: INCIDENT_TITLE, body: INCIDENT_MARKER, user: { login: 'someone-else' } };
   const context = {
     repository: 'owner/repo', assignee: 'owner', runId: '123',
     api: async (path, options) => {
@@ -143,7 +143,7 @@ test('paginates issues and never closes unrelated issues or pull requests', asyn
     },
   };
   const result = await checkHealth({ fetchImpl: async () => json(healthy()) });
-  assert.equal(await syncHealthIssue(result, context), 'recovered');
+  assert.equal((await syncHealthIssue(result, context)).state, 'recovered');
   assert.deepEqual(calls.filter(([, options]) => options).map(([path]) => path), ['/issues/3/comments', '/issues/3']);
 });
 
@@ -158,9 +158,37 @@ test('notification drills cannot resolve a real incident', async () => {
     repository: 'owner/repo', assignee: 'owner', runId: '123', drill: true,
     api: async (_path, options) => {
       assert.equal(options, undefined, 'a real incident must not be modified by a drill');
-      return [{ number: 1, title: INCIDENT_TITLE, body: INCIDENT_MARKER, user: { login: 'github-actions[bot]' } }];
+      return [{ number: 1, state: 'open', title: INCIDENT_TITLE, body: INCIDENT_MARKER, user: { login: 'github-actions[bot]' } }];
     },
   };
   const result = await checkHealth({ fetchImpl: async () => json(healthy()) });
-  assert.equal(await syncHealthIssue(result, context), 'healthy');
+  assert.equal((await syncHealthIssue(result, context)).state, 'healthy');
+});
+
+test('recovers a just-created notification even while the GitHub issue list is stale', async () => {
+  let issue;
+  const comments = [];
+  const context = {
+    repository: 'owner/repo', assignee: 'owner', runId: '123', drill: true,
+    api: async (path, options) => {
+      if (path.startsWith('/issues?')) return [];
+      if (path === '/issues' && options.method === 'POST') {
+        issue = { ...options.body, number: 42, state: 'open', user: { login: 'github-actions[bot]' } };
+        return issue;
+      }
+      if (path === '/issues/42/comments') { comments.push(options.body); return {}; }
+      if (path === '/issues/42') {
+        if (options?.method === 'PATCH') Object.assign(issue, options.body);
+        return issue;
+      }
+      assert.fail(`Unexpected API request: ${path}`);
+    },
+  };
+  const result = await checkHealth({ fetchImpl: async () => json(healthy()) });
+  const opened = await syncHealthIssue({ ...result, ok: false }, context);
+  assert.equal(opened.state, 'opened');
+  const recovered = await syncHealthIssue(result, { ...context, knownIssueNumbers: opened.incidentNumbers });
+  assert.equal(recovered.state, 'recovered');
+  assert.equal(issue.state, 'closed');
+  assert.equal(comments.length, 1);
 });
