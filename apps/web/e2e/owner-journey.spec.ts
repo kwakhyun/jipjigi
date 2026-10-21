@@ -10,31 +10,59 @@ async function login(page: Page, role: "owner" | "operator" = "owner") {
 test("계약에서 메시지를 접수하고 새로고침과 역할 전환 후에도 결과를 확인한다", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  // Isolate the known metric below from automatic browser samples. APIRequestContext
+  // still exercises the real /api/vitals handler, persistence, and growth read model.
+  await page.route("**/api/vitals", (route) => route.fulfill({ status: 202 }));
   await login(page);
   await page.reload();
   await expect(page.getByRole("region", { name: "최근 청구월 운영 지표" })).toBeVisible();
+  await page.getByRole("link", { name: "체험 설정", exact: true }).click();
+  await page.getByLabel("시작", { exact: true }).fill("08:00");
+  await page.getByLabel("종료", { exact: true }).fill("08:00");
+  await page.getByRole("button", { name: "변경 사항 저장", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("변경 사항을 저장했어요.");
+  await page.reload();
+  await expect(page.getByLabel("시작", { exact: true })).toHaveValue("08:00");
+  await expect(page.getByLabel("종료", { exact: true })).toHaveValue("08:00");
   await page.getByRole("link", { name: "계약 관리", exact: true }).click();
   await expect(page.getByRole("heading", { name: "계약 관리", exact: true })).toBeVisible();
   await expect(page.locator(".contract-row")).toHaveCount(25);
   await page.getByRole("link", { name: "갱신 안내 확인", exact: true }).click();
   await expect(page.getByText("이민지님께 보낼 내용", { exact: true })).toBeVisible();
+  await expect(page.getByText("발송 시간 제한 없음", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "발송 조건 확인 후 접수", exact: true }).click();
   await expect(page.locator(".outbox-row")).toHaveCount(1);
   await expect(page.locator(".outbox-row")).toContainText(/접수|예약/);
   await page.reload();
   await expect(page.locator(".outbox-row")).toHaveCount(1);
   await expect(page.locator(".outbox-row")).toContainText("성수 리버하임 501호");
+  const messages = (await (await page.request.get("/api/workspace/messages")).json()).data;
+  expect(messages[0]).toMatchObject({ status: "accepted", scheduledFor: null });
   await page.getByRole("link", { name: "계약 관리", exact: true }).click();
   await expect(page.getByText("응답 대기", { exact: true })).toBeVisible();
   await expect(page.getByText(/갱신 연락 기록 1건/)).toBeVisible();
   await page.reload();
   await expect(page.getByText(/갱신 연락 기록 1건/)).toBeVisible();
+
+  const metric = { metricId: crypto.randomUUID(), name: "INP", navigationType: "navigate", path: "/app", anonymousId: "e2e-performance-browser", sessionId: "e2e-performance-session" };
+  const reportedAt = Date.now();
+  for (const report of [
+    { value: 80, delta: 80, rating: "good", occurredAt: new Date(reportedAt - 2000).toISOString() },
+    { value: 640, delta: 560, rating: "poor", occurredAt: new Date(reportedAt - 1000).toISOString() },
+    { value: 80, delta: 80, rating: "good", occurredAt: new Date(reportedAt - 1500).toISOString() },
+  ]) {
+    expect((await page.request.post("/api/vitals", { data: { ...metric, ...report, id: crypto.randomUUID() } })).status()).toBe(202);
+  }
   await page.getByRole("button", { name: "그로스 데모로 전환", exact: true }).click();
   await expect(page).toHaveURL(/\/login\?mode=operator$/);
   await page.getByRole("button", { name: "그로스 데모 시작하기", exact: true }).click();
   await expect(page.getByRole("heading", { name: "그로스 관제", exact: true })).toBeVisible();
   await expect(page.getByText("현재 체험 공간의 데이터", { exact: true })).toBeVisible();
   await expect(page.locator(".growth-kpi").filter({ hasText: "메시지 요청" }).locator("strong")).toHaveText("1");
+  const inp = page.locator(".rum-metric-grid article").filter({ hasText: "INP p75" });
+  await expect(inp.locator("strong")).toHaveText("640ms");
+  await expect(inp).toContainText("양호 비율 0%");
+  await expect(page.locator(".rum-sample-count")).toHaveText("1개 표본, 1개 경로");
   expect((await page.request.get("/api/workspace/contracts")).status()).toBe(403);
   expect(errors).toEqual([]);
 });
@@ -73,7 +101,7 @@ test("서로 다른 브라우저의 계약, 변경 권한과 그로스 이벤트
   }
 });
 
-test("개인 데모를 초기화해 두 홈 구성을 각각 재현하고 기존 캐시를 교체한다", async ({ page }) => {
+test("개인 데모 초기화 후 캐시를 교체하고 이전 탭의 설정 저장을 차단한다", async ({ page }) => {
   await login(page);
   let previousOwnerId = (await (await page.request.get("/api/workspace/contracts")).json()).ownerId;
   for (const variant of ["agenda-first", "risk-first"] as const) {
@@ -88,6 +116,35 @@ test("개인 데모를 초기화해 두 홈 구성을 각각 재현하고 기존
     previousOwnerId = after.ownerId;
     expect(after.data).toHaveLength(25);
     expect((await (await page.request.get("/api/workspace/messages")).json()).data).toEqual([]);
+  }
+
+  await page.getByRole("link", { name: "체험 설정", exact: true }).click();
+  await page.getByRole("switch", { name: /제품 소식과 혜택/ }).check();
+  await page.getByLabel("시작", { exact: true }).fill("22:00");
+  const resetPage = await page.context().newPage();
+  try {
+    await resetPage.goto("/app/settings");
+    await resetPage.getByRole("checkbox", { name: "현재 체험 기록을 지우고 새로 시작합니다.", exact: true }).check();
+    await resetPage.getByRole("button", { name: "선택한 구성으로 새로 시작", exact: true }).click();
+    await expect(resetPage).toHaveURL(/\/app$/);
+    const fresh = await (await resetPage.request.get("/api/workspace/preferences")).json();
+    expect(fresh.ownerId).not.toBe(previousOwnerId);
+    expect(fresh.data).toMatchObject({ marketing: false, quietHoursStart: "21:00" });
+
+    await page.getByRole("button", { name: "변경 사항 저장", exact: true }).click();
+    await expect(page.getByRole("status")).toContainText("계정이 변경됐어요.");
+    await expect(page.getByRole("button", { name: "변경 사항 저장", exact: true })).toBeDisabled();
+    expect((await (await resetPage.request.get("/api/workspace/preferences")).json()).data).toEqual(fresh.data);
+
+    await page.getByRole("link", { name: "현재 계정 설정 다시 열기", exact: true }).click();
+    await expect(page.getByRole("switch", { name: /제품 소식과 혜택/ })).not.toBeChecked();
+    await expect(page.getByLabel("시작", { exact: true })).toHaveValue("21:00");
+    await page.getByRole("switch", { name: /제품 소식과 혜택/ }).check();
+    await page.getByRole("button", { name: "변경 사항 저장", exact: true }).click();
+    await expect(page.getByRole("status")).toHaveText("변경 사항을 저장했어요.");
+    expect((await (await page.request.get("/api/workspace/preferences")).json()).data.marketing).toBe(true);
+  } finally {
+    await resetPage.close();
   }
 });
 

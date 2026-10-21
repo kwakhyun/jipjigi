@@ -17,9 +17,7 @@ beforeAll(async () => {
   vi.stubEnv("ALLOW_DEMO_AUTH", "true");
   first = await enterDemoWorkspace();
   second = await enterDemoWorkspace();
-  // Cold-starting the WASM PostgreSQL engine can exceed Vitest's 10s hook
-  // default on a busy host; keep setup bounded by the existing 30s test budget.
-}, 30_000);
+});
 afterAll(async () => { await closeDatabase(); vi.unstubAllEnvs(); });
 
 describe("브라우저별 개인 데모 작업공간", () => {

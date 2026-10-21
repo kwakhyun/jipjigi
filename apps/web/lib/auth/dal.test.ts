@@ -23,6 +23,7 @@ beforeAll(async () => {
   ({ getDatabase, closeDatabase } = await import("@/lib/db/client"));
   ({ createSessionToken } = await import("./session"));
   ({ getOptionalSession, sessionFromRequest } = await import("./dal"));
+  await getDatabase();
 });
 
 afterAll(async () => {

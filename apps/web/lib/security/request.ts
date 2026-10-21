@@ -44,9 +44,16 @@ function memoryRateLimit(key: string, limit: number, windowMs: number) {
 }
 
 function redisConfiguration() {
-  const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
-  return url && token ? { url, token } : null;
+  const providers = [
+    [process.env.UPSTASH_REDIS_REST_URL, process.env.UPSTASH_REDIS_REST_TOKEN],
+    [process.env.KV_REST_API_URL, process.env.KV_REST_API_TOKEN],
+  ];
+  for (const [rawUrl, rawToken] of providers) {
+    const url = rawUrl?.trim();
+    const token = rawToken?.trim();
+    if (url && token) return { url, token };
+  }
+  return null;
 }
 
 function distributedLimiter(limit: number, windowMs: number) {

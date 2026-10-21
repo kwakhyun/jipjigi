@@ -24,6 +24,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
   const [value, setValue] = useState(initial);
   const [isPending, startTransition] = useTransition();
   const [status, showStatus] = useTransientMessage(2_500);
+  const [sessionError, setSessionError] = useState("");
 
   const save = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -34,12 +35,20 @@ export function SettingsForm({ initial }: { initial: Settings }) {
       quietHoursEnd: String(formData.get("quietHoursEnd") ?? ""),
     };
     startTransition(async () => {
-      const result = await savePreferencesAction(next);
-      if (result.ok) {
-        queryClient.setQueryData(ownerKeys.resource(ownerId, "preferences"), result.data);
-        await invalidateOwnerResources(queryClient, ownerId, ["preferences", "briefing"]);
+      try {
+        const result = await savePreferencesAction(next, ownerId);
+        if (!result.ok && result.code === "SESSION_CHANGED") {
+          setSessionError(result.error);
+          return;
+        }
+        if (result.ok) {
+          queryClient.setQueryData(ownerKeys.resource(ownerId, "preferences"), result.data);
+          await invalidateOwnerResources(queryClient, ownerId, ["preferences", "briefing"]);
+        }
+        showStatus(result.ok ? "변경 사항을 저장했어요." : result.error);
+      } catch {
+        showStatus("설정을 저장하지 못했어요. 연결 상태를 확인하고 다시 시도해 주세요.");
       }
-      showStatus(result.ok ? "변경 사항을 저장했어요." : result.error);
     });
   };
 
@@ -53,14 +62,15 @@ export function SettingsForm({ initial }: { initial: Settings }) {
         <Toggle label="제품 소식과 혜택" description="수신 동의만 저장합니다. 데모에서는 마케팅 알림을 발송하지 않습니다." checked={value.marketing} onChange={(checked) => setValue((current) => ({ ...current, marketing: checked }))} />
       </div>
       <div className="quiet-hours-form">
-        <div><strong>발송 제한 시간</strong><p>이 시간의 요청은 예약 상태와 다음 발송 가능 시각으로 저장합니다. 데모에서는 자동 발송하지 않습니다.</p></div>
+        <div><strong>발송 제한 시간</strong><p>이 시간의 요청은 예약 상태와 다음 발송 가능 시각으로 저장합니다. 시작과 종료가 같으면 시간 제한을 적용하지 않습니다. 데모에서는 자동 발송하지 않습니다.</p></div>
         <label><span>시작</span><input type="time" name="quietHoursStart" defaultValue={initial.quietHoursStart} required /></label>
         <span aria-hidden="true">~</span>
         <label><span>종료</span><input type="time" name="quietHoursEnd" defaultValue={initial.quietHoursEnd} required /></label>
       </div>
       <div className="settings-save-row">
-        <span role="status">{status ? <>{status === "변경 사항을 저장했어요." ? <CheckCircledIcon /> : null} {status}</> : null}</span>
-        <button className="button button-primary" type="submit" disabled={isPending}>{isPending ? "저장 중…" : "변경 사항 저장"}</button>
+        <span role="status">{sessionError || (status ? <>{status === "변경 사항을 저장했어요." ? <CheckCircledIcon /> : null} {status}</> : null)}</span>
+        {sessionError ? <a className="button button-secondary" href="/app/settings">현재 계정 설정 다시 열기</a> : null}
+        <button className="button button-primary" type="submit" disabled={isPending || Boolean(sessionError)}>{isPending ? "저장 중…" : "변경 사항 저장"}</button>
       </div>
     </form>
   );

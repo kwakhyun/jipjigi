@@ -16,6 +16,7 @@ beforeAll(async () => {
   process.env.ALLOW_DEMO_AUTH = "true";
   ({ getDatabase, closeDatabase } = await import("@/lib/db/client"));
   ({ runOperation } = await import("./service"));
+  await getDatabase();
 });
 
 afterAll(async () => {

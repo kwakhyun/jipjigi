@@ -39,10 +39,12 @@ Docker standalone 이미지는 서버만 실행합니다. 이미지 기동 전�
 | `ALLOW_DEMO_AUTH` | 프로덕션에서 데모 시드, 공개 입장 계정과 개인 데모 세션을 허용할지 결정. 명시적 `true` 필요 |
 | `UPSTASH_REDIS_REST_URL` | 운영에서 필수인 Redis 기반 분산 요청 제한 URL |
 | `UPSTASH_REDIS_REST_TOKEN` | 운영에서 필수인 Redis REST 인증 토큰 |
-| `KV_REST_API_URL` | Vercel Marketplace가 KV 이름으로 제공하는 Redis REST URL. Upstash URL이 없을 때 사용 |
-| `KV_REST_API_TOKEN` | Vercel Marketplace가 KV 이름으로 제공하는 Redis REST 토큰. Upstash 토큰이 없을 때 사용 |
+| `KV_REST_API_URL` | Vercel Marketplace가 KV 이름으로 제공하는 Redis REST URL. 완전한 Upstash 인증 쌍이 없을 때 KV 토큰과 함께 사용 |
+| `KV_REST_API_TOKEN` | Vercel Marketplace가 KV 이름으로 제공하는 Redis REST 토큰. 완전한 Upstash 인증 쌍이 없을 때 KV URL과 함께 사용 |
 
 Upstash 변수 두 개를 모두 설정하면 로그인, 행동 이벤트, Core Web Vitals, API와 Server Action 요청 제한이 Redis sliding window를 공유합니다. 로컬에서만 자격 증명이 없을 때 bounded 메모리 저장소를 사용합니다. 운영에서는 Redis가 없거나 1.5초 안에 응답하지 않으면 요청 제한 대상 작업을 차단하고 구조화 경고 로그를 남깁니다. `/api/health`에서 `rateLimitStore: redis`, `rateLimitReady: true`를 확인해야 합니다.
+
+환경변수의 앞뒤 공백과 빈 문자열은 없는 값으로 처리합니다. 완전한 Upstash URL과 토큰 쌍을 우선하고, 없으면 완전한 KV 쌍을 선택합니다. 서로 다른 변수 쌍의 URL과 토큰은 혼합하지 않습니다.
 
 `NEXT_PUBLIC_APP_URL`은 메타데이터와 사이트맵에 포함되므로 Docker 이미지 빌드 시에도 같은 값을 전달합니다.
 

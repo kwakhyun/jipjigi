@@ -53,8 +53,12 @@ export async function runOperationAction(input: Operation): Promise<ActionResult
 
 export async function savePreferencesAction(
   input: NotificationPreferences,
+  expectedOwnerId: string,
 ): Promise<ActionResult<NotificationPreferences>> {
   const user = await requireOwner();
+  if (user.id !== expectedOwnerId) {
+    return { ok: false, error: "계정이 변경됐어요. 현재 계정의 설정을 다시 열어 주세요.", code: "SESSION_CHANGED" };
+  }
   if (!(await rateLimit(`preferences-action:${user.id}`, 20)).allowed) {
     return { ok: false, error: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.", code: "RATE_LIMITED" };
   }

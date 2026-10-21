@@ -87,7 +87,7 @@ export function MessagesView({ initialTargetId }: { initialTargetId?: string | u
           ) : <EmptyState icon={<CheckCircledIcon />} title="선택한 대상에 보낼 메시지가 없어요." description="이미 접수했거나 상태가 바뀌었을 수 있어요. 발송함을 확인하거나 다른 대상을 선택해 주세요." />}
           <div className="guardrail-checklist" aria-label="발송 전 자동 점검">
             <span><CheckCircledIcon /> 접수 시 수신 동의 확인</span>
-            <span><ClockIcon /> 발송 제한 {quietHours.start}~{quietHours.end} (한국 시간)</span>
+            <span><ClockIcon /> {quietHours.start === quietHours.end ? "발송 시간 제한 없음" : `발송 제한 ${quietHours.start}~${quietHours.end} (한국 시간)`}</span>
             <span><LockClosedIcon /> 갱신은 24시간 1회, 미납은 청구월 1회</span>
           </div>
           <Button wide disabled={!selected || isPending || queries.some((query) => query.isError)} onClick={send}><PaperPlaneIcon /> {isPending ? "발송 조건 확인 중…" : "발송 조건 확인 후 접수"}</Button>

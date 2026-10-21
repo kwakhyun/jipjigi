@@ -16,6 +16,7 @@ beforeAll(async () => {
   vi.stubEnv("ALLOW_DEMO_AUTH", "true");
   ({ getDatabase, closeDatabase } = await import("@/lib/db/client"));
   repository = await import("./repository");
+  await getDatabase();
 });
 
 afterAll(async () => {

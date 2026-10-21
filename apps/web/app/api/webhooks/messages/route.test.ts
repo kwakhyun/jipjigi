@@ -25,6 +25,7 @@ beforeAll(async () => {
   ({ recordProductEvent } = await import("@/lib/analytics/server"));
   ({ POST: messageWebhook } = await import("./route"));
   ({ POST: renewalResponseWebhook } = await import("../renewal-responses/route"));
+  await getDatabase();
 });
 
 afterAll(async () => {

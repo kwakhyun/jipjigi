@@ -22,7 +22,11 @@ export default defineConfig({
     },
     include: ["lib/**/*.test.ts", "components/**/*.test.tsx", "app/**/*.test.ts", "app/**/*.test.tsx", "proxy.test.ts"],
     exclude: [".next/**", "node_modules/**"],
-    maxWorkers: 2,
+    // Each DB test file starts its own WASM PostgreSQL engine. Avoid competing
+    // cold starts on memory-constrained hosts, and keep setup out of the 30s
+    // functional-test budget. A standalone cold start was measured at 68s.
+    maxWorkers: 1,
+    hookTimeout: 120_000,
     testTimeout: 30_000,
   },
 });

@@ -53,6 +53,13 @@ describe("발송 전 공통 미리보기", () => {
     expect(screen.getByText(/자동 발송은 실행되지 않습니다/)).toBeTruthy();
   });
 
+  it("발송 제한 시작과 종료가 같으면 시간 제한이 없음을 안내한다", () => {
+    const query = ownerQueryHarness({ messages: [], contracts, ledger: charges, preferences: { rentReminder: true, renewalReminder: true, maintenanceUpdates: true, marketing: false, quietHoursStart: "08:00", quietHoursEnd: "08:00" } });
+    render(<MessagesView />, { wrapper: query.Wrapper });
+    expect(screen.getByText("발송 시간 제한 없음")).toBeTruthy();
+    expect(screen.queryByText(/발송 제한 08:00~08:00/)).toBeNull();
+  });
+
   it("런타임의 한국어 로케일이 AM을 반환해도 발송 시각을 동일한 한국어로 표시한다", () => {
     // CI's Node ICU formatted ko-KR with AM, while Chromium used 오전.
     // format is a runtime getter, although TypeScript declares it as a method.

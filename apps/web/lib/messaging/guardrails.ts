@@ -37,6 +37,8 @@ function seoulParts(date: Date) {
 }
 
 function inQuietHours(current: number, start: number, end: number) {
+  // Equal endpoints explicitly disable quiet hours, as shown in settings.
+  if (start === end) return false;
   return start < end ? current >= start && current < end : current >= start || current < end;
 }
 
