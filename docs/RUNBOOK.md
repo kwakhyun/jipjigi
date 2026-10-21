@@ -58,19 +58,50 @@ HTTPS 주소로 빌드한 프로덕션 이미지에서만 HSTS 헤더를 활성�
 
 `GET /api/health`가 HTTP 200과 `database: ready`, `databaseStore: neon`, `rateLimitStore: redis`, `rateLimitReady: true`를 반환해야 합니다. 503이면 Neon과 Upstash 리소스 연결, 환경 변수 범위, 공급자 상태를 순서대로 확인합니다.
 
+운영 주소는 `https://jipjigi-khyun.vercel.app`입니다. `pnpm health:check`로 실제 운영 상태를 검사할 수 있습니다. Vercel 배포 성공 후와 5분 간격으로 같은 검사를 실행하며, 실패 시 담당자에게 할당한 GitHub 이슈로 알립니다. 검사 기준, 수동 실행, 알림 중복 방지와 예약 실행의 한계는 [헬스체크와 장애 알림](OBSERVABILITY.md#운영-헬스체크와-장애-알림)을 참고하세요.
+
+## Redis 장애 대응
+
+1. `pnpm health:check` 결과를 확인합니다. DB는 정상인데 Redis만 실패하면 Vercel 런타임의 `rate_limit.redis_failure` 로그와 Marketplace 리소스 상태를 확인합니다. `READY`는 빌드와 배포 완료 상태이며 외부 저장소의 정상 동작을 보장하지 않습니다.
+2. Production 환경의 Redis 변수 **이름, 대상 환경, 연결된 리소스 ID**를 비교합니다. URL과 토큰은 완전한 같은 쌍이어야 합니다. 비밀 값을 터미널, 이슈, 문서에 출력하거나 `.env` 파일로 일괄 내려받지 않습니다.
+3. 인증 정보를 메모리에서만 사용해 Redis `PING`을 확인합니다. DNS 오류는 토큰 오류와 구분합니다. 리소스가 `uninstalled`라면 연결 해제 상태를 복구하거나 같은 Free 플랜의 대체 리소스를 연결합니다. 자동 유료 업그레이드는 켜지 않습니다.
+4. 새 리소스 생성 후 연결만 실패했다면 **이미 생성된 리소스**를 다시 연결합니다. 동일 명령으로 리소스를 중복 생성하지 않습니다. 기존 환경 변수와 충돌하면 장애 리소스가 제공한 Production 변수만 교체하고 Preview/Development, DB, 인증 설정은 별도로 다룹니다.
+5. 변경된 환경 변수로 Production을 다시 배포합니다. 운영 주소의 헬스체크 통과를 확인하고 데모 로그인, 설정 변경과 저장, 새로고침 후 값 유지까지 검증합니다. 검증에 쓴 설정은 원래 값으로 되돌립니다.
+6. 다음 검사에서 장애 이슈가 자동으로 닫히는지 확인합니다. `pnpm health:check` 실패나 알림 단계 자체의 실패가 계속되면 복구 완료로 처리하지 않습니다. `db:reset`이나 운영 요청 제한 해제는 복구 방법으로 사용하지 않습니다.
+
+### 2026-10-22 Redis 장애와 복구 기록
+
+**영향:** 배포가 정상 완료되어도 Redis를 사용하는 로그인과 설정 저장 등 요청 제한 대상 작업이 차단됐습니다. `/api/health`는 503, Neon은 `ready`, Redis는 `rateLimitReady: false`였습니다. Redis에는 요청 제한 데이터만 저장하며 계약과 설정 데이터는 Neon에 있습니다.
+
+**확인된 원인:** 기존 Marketplace 리소스 `jipjigi-rate-limit` (`store_QMAC5x2ExQN5ZVJN`)이 `uninstalled` 상태였지만 Vercel Production에는 그 리소스의 Redis 변수 5개가 남아 있었습니다. 해당 주소로 직접 `PING`을 시도했을 때 인증 이전 단계에서 DNS `ENOTFOUND`가 발생했습니다. 애플리케이션은 운영 Redis 장애 시 요청을 차단하는 정책대로 동작했습니다. 리소스가 언제, 누구에 의해, 어떤 이유로 연결 해제됐는지는 확인되지 않았습니다. 무료 플랜의 비활성 정책이 이번 원인이라고 단정하지 않습니다.
+
+| 시각 (KST) | 확인 및 조치 |
+| --- | --- |
+| 2026-10-22 04:55 | 운영 헬스체크 503 확인. DB 정상, Redis 실패. 최초 장애 발생 시각은 미확인 |
+| 05:19경 | Free 리소스 교체와 Production 변수 재연결 후 같은 코드로 재배포 시작 |
+| 05:22:19 | Vercel Production 재배포 성공 |
+| 05:23:00, 05:25:50 | 운영 헬스체크 200, Neon과 Redis 정상 응답 확인 |
+| 복구 후 | 실제 브라우저에서 데모 로그인, 알림 설정 변경과 저장, 새로고침 후 유지 확인. 원래 설정으로 복원 |
+
+**복구 내용:** `jipjigi-rate-limit-recovered` (`store_LzF5pX90A8XFTGDP`)를 `sin1`, Free, `autoUpgrade=false`, `prodPack=false`로 생성했습니다. 첫 연결은 기존 변수 이름과 충돌하여 실패했습니다. Production의 기존 `REDIS_URL`, `KV_URL`, `KV_REST_API_URL`, `KV_REST_API_TOKEN`, `KV_REST_API_READ_ONLY_TOKEN`만 제거한 뒤 생성된 리소스를 재연결했습니다. 새 Redis의 직접 `PING`은 HTTP 200 `PONG`으로 응답했습니다. DB 데이터 이행이나 초기화는 하지 않았습니다.
+
+복구 배포는 `dpl_4hsqXW27HG1LqbNytzKJvnpayhEi`이며 코드 커밋은 기존 `d90cf2812110140830d4e2da1e8217a437214efe` 그대로입니다. [해당 커밋 CI](https://github.com/kwakhyun/jipjigi/actions/runs/39660883992)와 재배포의 타입 검사, 테스트, 빌드, 전송량 검사, DB 마이그레이션이 성공했습니다. 복구 직후 조회한 10분 범위의 런타임 경고와 오류, 브라우저 경고와 오류는 없었습니다. 이 확인 범위 밖까지 오류가 없었다는 의미는 아닙니다.
+
+**후속 조치:** 배포 직후 실제 의존성 검사, 5분 주기 검사, 장애 이슈 생성과 복구 자동 처리, 이 Codex 대화의 상태 감시를 추가합니다. 기존에 없던 외부 의존성 장애 탐지를 보완하는 조치이며 Redis 요청 제한 정책을 완화하지 않습니다. Preview/Development의 이전 Redis 연결은 이번 복구 범위에서 교체하거나 정상 여부를 검증하지 않았으므로 해당 환경을 사용할 때 별도 확인해야 합니다.
+
 ## 무료 공개 데모 운영
 
-2026년 8월 31일 실제 계정과 리소스 설정을 확인했습니다.
+Vercel과 Neon 플랜은 2026년 8월 31일, 교체한 Redis 플랜과 자동 업그레이드 설정은 2026년 10월 22일 확인했습니다.
 
 | 서비스 | 확인된 플랜 | 비용 제한 |
 | --- | --- | --- |
 | Vercel | Hobby, 활성 상태 | 개인 비상업 프로젝트용 무료 플랜. 한도 초과 시 기능 제한 가능 |
 | Neon `jipjigi-postgres` | Free (`free_v3`) | 프로젝트당 100 CU-hours, 0.5 GB. 무료 초과 사용료 없음 |
-| Upstash `jipjigi-rate-limit` | Free (`free`) | 월 500,000 명령. `autoUpgrade=false`, `prodPack=false` |
+| Upstash `jipjigi-rate-limit-recovered` | Free (`free`) | `autoUpgrade=false`, `prodPack=false`. 현재 한도는 공급자 대시보드에서 확인 |
 
 현재 구성은 유료 플랜으로 자동 전환하지 않습니다. 한도에 도달하면 자동 결제 대신 요청이나 서비스가 제한될 수 있습니다. 유료 플랜, 자동 업그레이드, 유료 부가 기능은 별도 승인 없이 켜지 않습니다. 무료 정책의 근거는 [Vercel Hobby](https://vercel.com/docs/plans/hobby), [Neon Free 한도](https://neon.com/docs/introduction/plans), [Upstash 자동 업그레이드](https://upstash.com/docs/redis/features/auto-upgrade)입니다.
 
-`ALLOW_DEMO_AUTH=true`인 공개 데모에는 실제 개인정보를 입력하지 않습니다. 방문자별 공간 안에서만 샘플 데이터가 변경되며 알림톡과 결제 등 유료 외부 공급자는 연결하지 않습니다. 미리보기와 운영은 현재 같은 DB와 요청 제한 리소스를 공유하므로 파괴적인 검증은 로컬 PGlite에서만 수행합니다. 실제 고객 서비스를 시작할 때는 환경별 DB와 인증부터 분리해야 합니다.
+`ALLOW_DEMO_AUTH=true`인 공개 데모에는 실제 개인정보를 입력하지 않습니다. 방문자별 공간 안에서만 샘플 데이터가 변경되며 알림톡과 결제 등 유료 외부 공급자는 연결하지 않습니다. 미리보기와 운영은 현재 같은 DB를 공유하므로 파괴적인 검증은 로컬 PGlite에서만 수행합니다. 2026-10-22 교체한 Redis는 Production에만 연결했습니다. 실제 고객 서비스를 시작할 때는 환경별 DB와 인증부터 분리해야 합니다.
 
 공간의 유효 시간은 생성 후 12시간이고 전체 저장 개수는 50개입니다. 만료 즉시 접근은 차단하지만 물리 삭제는 다음 공간 생성 때 최대 하나씩 수행합니다. 새 방문자를 위해 아직 유효한 다른 공간을 지우지는 않습니다. 상한에 도달하면 새 로그인에 대기 안내를 표시합니다. 기존 공간으로의 로그인과 본인 초기화는 가능합니다. 새 데모를 악용해 무한히 저장하지 않도록 로그인 요청 제한과 공간 생성 잠금을 함께 사용합니다.
 

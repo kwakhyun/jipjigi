@@ -1,5 +1,46 @@
 # 성능 관측성과 품질 예산
 
+## 운영 헬스체크와 장애 알림
+
+`.github/workflows/production-health.yml`은 Vercel의 `Production` 배포 성공 이벤트 직후, 5분 간격(매시 02, 07, 12분 등), 수동 실행 시 운영 주소 `https://jipjigi-khyun.vercel.app/api/health`를 검사합니다. 배포 이벤트는 `vercel[bot]`이 보낸 것만 받으며, 실행 코드는 항상 `main`에서 가져옵니다. 인증이 필요한 개별 배포 주소 대신 사용자가 접속하는 공개 운영 주소를 검사하므로 현재 서비스의 상태를 보여줍니다. 배포 성공 후에도 외부 의존성이 실패할 수 있습니다.
+
+`scripts/health-check.mjs`는 다음을 모두 요구합니다.
+
+- HTTP 200이며 JSON 응답일 것. 리다이렉트는 따라가지 않습니다.
+- `status: ok`, `database: ready`, `databaseStore: neon`, `rateLimitStore: redis`, `rateLimitReady: true`일 것.
+- 응답 시각이 최근 5분 이내이며 미래 1분을 넘지 않을 것.
+
+한 요청의 연결부터 응답 본문 수신까지 10초로 제한하고, 실패하면 10초 간격으로 최대 3회 시도합니다. 모든 시도가 실패하면 검사 단계와 워크플로가 실패하며, 성공 여부와 각 시도의 사유를 Actions 실행 요약에 남깁니다. 공급자 토큰, Redis 주소, 원문 오류 응답은 출력하지 않습니다. 정상 시 Redis PING은 검사당 1회이며 로그인이나 설정 데이터를 생성하지 않습니다. 로그인과 설정 저장의 실제 여정은 배포 검증 시 별도 E2E/브라우저로 확인합니다.
+
+`scripts/health-alert.mjs`는 `GITHUB_TOKEN`의 `issues: write` 권한으로 `[운영 장애] Jipjigi 헬스체크 실패` 이슈를 생성합니다. 기본 담당자는 저장소 소유자인 `kwakhyun`이며 할당과 멘션으로 GitHub 알림을 전달합니다. 다른 담당자는 저장소 Actions 변수 `HEALTH_ALERT_ASSIGNEE`로 지정합니다. 이슈 알림의 이메일/푸시 수신은 본인 GitHub 알림 설정을 따릅니다. 별도 웹훅이나 Redis 자격 증명은 필요하지 않습니다.
+
+같은 장애가 계속되면 열린 자동 이슈를 재사용하고 추가 이슈나 댓글을 만들지 않습니다. 정상 응답이 확인되면 복구 댓글과 검사 링크를 남기고 닫습니다. 복구 후 재발은 새 이슈로 기록합니다. 자동 이슈는 제목, 전용 마커, `github-actions[bot]` 작성자를 함께 확인하며 다른 이슈와 PR은 변경하지 않습니다. 실행을 직렬화해 동시에 중복 이슈를 생성하지 않도록 합니다. 장애 중 이슈를 수동으로 닫으면 다음 실패에서 새 이슈가 생성됩니다. 개별 Actions 실패 알림은 GitHub 사용자의 별도 구독 설정에 따라 반복 수신될 수 있습니다.
+
+GitHub 예약 실행은 부하에 따라 지연되거나 누락될 수 있으며, 공개 저장소에 60일 동안 활동이 없으면 자동 중지될 수 있습니다. 따라서 5분은 검사 요청 간격이며 탐지 시간 보장이 아닙니다. 이 Codex 대화의 5분 주기 감시가 운영 주소와 GitHub 감시 워크플로의 활성 상태 및 최근 실행을 확인하고, 새 장애, 복구, 감시 중단 때만 알리도록 함께 설정합니다. Codex 감시는 앱과 실행 호스트의 가용성에 의존합니다. [GitHub 예약 실행 제한](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)과 [Actions 알림 설정](https://docs.github.com/en/actions/concepts/workflows-and-actions/notifications-for-workflow-runs)을 참고하세요.
+
+### 수동 검사와 검증
+
+```bash
+# 실제 운영 주소: 읽기 전용 검사, 외부 Redis 자격 증명 불필요
+pnpm health:check
+
+# 장애/복구 테스트: 로컬 HTTP 서버와 가짜 GitHub API만 사용
+pnpm test:monitor
+
+# GitHub에서 검사와 실제 알림 동기화를 즉시 실행
+gh workflow run production-health.yml --ref main
+gh run list --workflow production-health.yml --limit 5
+
+# 실제 장애 없이 테스트임을 표시한 이슈 생성, 할당, 복구 댓글, 종료 확인
+gh workflow run production-health.yml --ref main -f test_alert=true
+```
+
+알림 테스트는 실제 헬스체크가 정상인 경우에만 실행하며 `[알림 테스트]` 제목과 별도 마커를 사용합니다. 실제 장애 이슈를 닫거나 운영 환경을 변경하지 않습니다. GitHub 알림은 전송 경로를 확인할 수 있지만 사용자의 기기에서 읽었는지까지 자동으로 확인할 수는 없습니다.
+
+테스트는 Redis 장애 503, HTTP 200의 잘못된 의존성 상태, 인증 리다이렉트, HTML 응답, 오래된 응답, 네트워크 오류와 본문 타임아웃, 일시적 오류 후 재시도 성공을 다룹니다. 로컬 HTTP 통합 테스트로 장애 발생 → 이슈 1개 생성 → 지속 중 중복 방지 → 복구 댓글과 닫기 → 재발 시 새 이슈 생성을 확인합니다. GitHub API 권한 오류와 잘못된 검사 파일은 알림 단계 실패로 드러나며 정상 복구로 처리하지 않습니다. `pnpm verify`와 기존 CI에 이 테스트를 포함합니다.
+
+장애 대응 및 2026-10-22 Redis 사고 기록은 [운영 런북](RUNBOOK.md#redis-장애-대응)을 참고하세요.
+
 ## 실제 사용자 성능 측정
 
 루트 레이아웃의 경량 로더가 hydration 이후 Web Vitals 수집기를 불러옵니다. 수집기는 `LCP`, `INP`, `CLS`, `FCP`, `FID`, `TTFB`를 `/api/vitals`로 전송합니다. Beacon API를 우선 사용하고 지원되지 않으면 `keepalive` 요청으로 대체합니다. 실패는 사용자의 주 작업에 영향을 주지 않습니다.

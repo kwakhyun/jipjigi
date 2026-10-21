@@ -11,10 +11,12 @@
     "build": "turbo build",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
+    "test:monitor": "node --test scripts/health-monitor.test.mjs",
+    "health:check": "node scripts/health-check.mjs",
     "bundle:check": "pnpm --filter @jipjigi/web bundle:check",
     "test:e2e": "pnpm --filter @jipjigi/web test:e2e",
     "test:e2e:setup": "pnpm --filter @jipjigi/web test:e2e:setup",
-    "verify": "pnpm typecheck && pnpm test && pnpm build && pnpm bundle:check",
+    "verify": "pnpm typecheck && pnpm test && pnpm test:monitor && pnpm build && pnpm bundle:check",
     "db:reset": "pnpm --filter @jipjigi/web db:reset",
     "db:migrate": "pnpm --filter @jipjigi/web db:migrate",
     "db:setup": "pnpm --filter @jipjigi/web db:setup"
