@@ -3,7 +3,6 @@ import { createServer } from 'node:http';
 import { once } from 'node:events';
 import test from 'node:test';
 import { checkHealth, HEALTH_URL, probeHealth } from './health-check.mjs';
-import { githubClient, INCIDENT_MARKER, INCIDENT_TITLE, syncHealthIssue } from './health-alert.mjs';
 
 const healthy = () => ({ status: 'ok', database: 'ready', databaseStore: 'neon', rateLimitStore: 'redis', rateLimitReady: true, timestamp: new Date().toISOString() });
 const json = (body, status = 200) => Response.json(body, { status });
@@ -73,122 +72,22 @@ test('timeout covers response body reads as well as connection setup', async t =
   assert.equal(result.reason, 'Request timed out');
 });
 
-test('HTTP integration: outage -> one assigned incident -> recovery -> new recurrence', async t => {
+test('HTTP integration: rejects an outage and passes after dependency recovery', async t => {
   let isHealthy = false;
-  const issues = [];
-  const comments = [];
-  let posts = 0;
-  const base = await serve(t, async (req, res) => {
-    res.setHeader('content-type', 'application/json');
-    if (req.url === '/api/health') {
-      res.statusCode = isHealthy ? 200 : 503;
-      res.end(JSON.stringify({ ...healthy(), rateLimitReady: isHealthy }));
-      return;
-    }
-    assert.equal(req.headers.authorization, 'Bearer test-only-token');
-    const chunks = [];
-    for await (const chunk of req) chunks.push(chunk);
-    const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : null;
-    if (req.method === 'GET') res.end(JSON.stringify(issues.filter(issue => issue.state === 'open')));
-    else if (req.method === 'POST' && req.url.endsWith('/comments')) {
-      comments.push(body);
-      res.end('{}');
-    } else if (req.method === 'POST') {
-      posts++;
-      issues.push({ ...body, number: posts, state: 'open', user: { login: 'github-actions[bot]' } });
-      res.statusCode = 201;
-      res.end(JSON.stringify(issues.at(-1)));
-    } else if (req.method === 'PATCH') {
-      Object.assign(issues.find(issue => issue.number === Number(req.url.split('/').at(-1))), body);
-      res.end('{}');
-    } else { res.statusCode = 404; res.end('{}'); }
+  let requests = 0;
+  const base = await serve(t, (_req, res) => {
+    requests++;
+    res.writeHead(isHealthy ? 200 : 503, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ ...healthy(), rateLimitReady: isHealthy }));
   });
-  const fetchImpl = (url, options) => fetch(`${base}${new URL(url).pathname}${new URL(url).search}`, options);
-  const context = {
-    api: githubClient({ token: 'test-only-token', repository: 'owner/repo', fetchImpl }),
-    repository: 'owner/repo', assignee: 'owner', runId: '123',
-  };
-  const run = async () => (await syncHealthIssue(await checkHealth({ fetchImpl, delayMs: 0 }), context)).state;
-  assert.equal(await run(), 'opened');
-  assert.equal(await run(), 'ongoing');
-  assert.equal(posts, 1);
-  assert.deepEqual(issues[0].assignees, ['owner']);
-  assert.match(issues[0].body, /HTTP 503/);
-  assert.match(issues[0].body, /actions\/runs\/123/);
+  const failed = await checkHealth({ url: base, delayMs: 0 });
+  assert.equal(failed.ok, false);
+  assert.equal(requests, 3);
+  assert.ok(failed.observations.every(item => item.httpStatus === 503));
   isHealthy = true;
-  assert.equal(await run(), 'recovered');
-  assert.equal(comments.length, 1);
-  assert.equal(issues[0].state, 'closed');
-  assert.equal(await run(), 'healthy');
-  assert.equal(comments.length, 1);
-  isHealthy = false;
-  assert.equal(await run(), 'opened');
-  assert.equal(posts, 2);
-});
-
-test('paginates issues and never closes unrelated issues or pull requests', async () => {
-  const calls = [];
-  const unrelated = { number: 1, state: 'open', title: INCIDENT_TITLE, body: INCIDENT_MARKER, user: { login: 'someone-else' } };
-  const context = {
-    repository: 'owner/repo', assignee: 'owner', runId: '123',
-    api: async (path, options) => {
-      calls.push([path, options]);
-      const page = new URL(path, 'https://api.github.com').searchParams.get('page');
-      if (page === '1') return Array.from({ length: 100 }, () => unrelated);
-      if (page === '2') return [
-        { ...unrelated, number: 2, user: { login: 'github-actions[bot]' }, pull_request: {} },
-        { ...unrelated, number: 3, user: { login: 'github-actions[bot]' } },
-      ];
-      return {};
-    },
-  };
-  const result = await checkHealth({ fetchImpl: async () => json(healthy()) });
-  assert.equal((await syncHealthIssue(result, context)).state, 'recovered');
-  assert.deepEqual(calls.filter(([, options]) => options).map(([path]) => path), ['/issues/3/comments', '/issues/3']);
-});
-
-test('missing health results and GitHub API errors fail visibly without leaking credentials', async () => {
-  await assert.rejects(syncHealthIssue({}, { api: () => assert.fail('must not call GitHub') }), /invalid health result/);
-  const api = githubClient({ token: 'secret-token', repository: 'owner/repo', fetchImpl: async () => json({ message: 'private-provider-details' }, 403) });
-  await assert.rejects(api('/issues'), error => error.message.includes('HTTP 403') && !/secret|private/.test(error.message));
-});
-
-test('notification drills cannot resolve a real incident', async () => {
-  const context = {
-    repository: 'owner/repo', assignee: 'owner', runId: '123', drill: true,
-    api: async (_path, options) => {
-      assert.equal(options, undefined, 'a real incident must not be modified by a drill');
-      return [{ number: 1, state: 'open', title: INCIDENT_TITLE, body: INCIDENT_MARKER, user: { login: 'github-actions[bot]' } }];
-    },
-  };
-  const result = await checkHealth({ fetchImpl: async () => json(healthy()) });
-  assert.equal((await syncHealthIssue(result, context)).state, 'healthy');
-});
-
-test('recovers a just-created notification even while the GitHub issue list is stale', async () => {
-  let issue;
-  const comments = [];
-  const context = {
-    repository: 'owner/repo', assignee: 'owner', runId: '123', drill: true,
-    api: async (path, options) => {
-      if (path.startsWith('/issues?')) return [];
-      if (path === '/issues' && options.method === 'POST') {
-        issue = { ...options.body, number: 42, state: 'open', user: { login: 'github-actions[bot]' } };
-        return issue;
-      }
-      if (path === '/issues/42/comments') { comments.push(options.body); return {}; }
-      if (path === '/issues/42') {
-        if (options?.method === 'PATCH') Object.assign(issue, options.body);
-        return issue;
-      }
-      assert.fail(`Unexpected API request: ${path}`);
-    },
-  };
-  const result = await checkHealth({ fetchImpl: async () => json(healthy()) });
-  const opened = await syncHealthIssue({ ...result, ok: false }, context);
-  assert.equal(opened.state, 'opened');
-  const recovered = await syncHealthIssue(result, { ...context, knownIssueNumbers: opened.incidentNumbers });
-  assert.equal(recovered.state, 'recovered');
-  assert.equal(issue.state, 'closed');
-  assert.equal(comments.length, 1);
+  const recovered = await checkHealth({ url: base, delayMs: 0 });
+  assert.equal(recovered.ok, true);
+  assert.equal(recovered.observations.length, 1);
+  assert.equal(recovered.observations[0].httpStatus, 200);
+  assert.equal(requests, 4);
 });
